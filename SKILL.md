@@ -18,7 +18,7 @@ scripts\workbuddy-ambient.ps1 <command> [options]
 ```
 
 Read JSON output and report the concrete result. Do not reconstruct CDP commands manually.
-Execute the entry point yourself. Do not send the user to Terminal or expose an installation-path command unless the user explicitly asks for manual CLI instructions.
+Execute the entry point yourself by default. Use Terminal as a documented fallback when the agent sandbox cannot complete an otherwise valid operation, or when the user explicitly asks for manual CLI instructions.
 
 ## Workflow
 
@@ -30,6 +30,7 @@ Execute the entry point yourself. Do not send the user to Terminal or expose an 
 6. When no authenticated CDP session exists, `apply --restart confirmed` starts a detached graceful handoff and returns `status: pending`; do not start a second apply.
 7. WorkBuddy closes normally, reopens, signs a new Session Passport, and applies the skin. Run `verify` or `status` to read the recorded handoff result.
 8. Report the active theme and visual mode. Mention the loopback port or restore command only when useful.
+9. If the agent environment cannot see the host process, cannot launch the detached handoff, or cannot access the installed skill after safe retries, give the user one exact, quoted Terminal command for the detected platform and theme. Explain why host Terminal is required, preserve any restart-consent requirement, and ask the user to paste the JSON result. Do not weaken ownership checks or patch in a process-name fallback.
 
 ## Apply a built-in theme
 
@@ -119,4 +120,5 @@ Treat the operation as successful only when `verify` reports an installed render
 - `fetch failed` means the saved/default CDP port is unavailable; diagnose launch or port state.
 - `status: pending` with `handoff: true` means the restart was safely delegated; wait for WorkBuddy to reopen instead of launching another apply.
 - `the active skin session could not be authenticated` means neither the Session Passport nor the visible process tree proved ownership. Ask for restart permission in chat and execute `apply --restart confirmed` yourself.
+- If the same authentication or handoff failure remains because the agent sandbox cannot reach host state, provide the exact installed entry-point command as the final fallback. Use the real detected path, quote it, and include `--restart confirmed` only after the user authorized a restart.
 - `WorkBuddy DOM ... missing markers` means CDP discovery and ownership verification already passed. Diagnose renderer readiness or a WorkBuddy DOM adapter change; do not attribute this error to the single-instance lock or process-query sandbox.
