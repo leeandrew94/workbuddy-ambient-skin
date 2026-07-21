@@ -122,9 +122,13 @@ export function parseBundleExecutablePids(output, appPath = APP_PATH) {
 
 export async function bundleWorkBuddyPids(run = execFile) {
   try {
-    const { stdout } = await run("/usr/sbin/lsof", ["-n", "-a", "-d", "txt", "-Fpcn"]);
+    // lsof can exceed Node's default 1 MiB execFile buffer on a busy desktop.
+    // A truncated scan must never be interpreted as "WorkBuddy is not running".
+    const { stdout } = await run("/usr/sbin/lsof", ["-n", "-a", "-d", "txt", "-Fpcn"], { maxBuffer: 32 * 1024 * 1024 });
     return parseBundleExecutablePids(stdout);
-  } catch { return []; }
+  } catch (error) {
+    throw new Error(`could not enumerate the WorkBuddy process family: ${error.message}`);
+  }
 }
 
 export const exactWorkBuddyPids = bundleWorkBuddyPids;
