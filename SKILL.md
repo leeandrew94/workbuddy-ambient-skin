@@ -24,16 +24,17 @@ Treat Agent execution and host-Terminal execution as equal user-selectable modes
 
 1. Run `scripts/workbuddy-ambient.sh doctor` on macOS or `scripts\workbuddy-ambient.ps1 doctor` on Windows.
 2. Stop if WorkBuddy is missing, the macOS bundle id or Windows executable identity is invalid, or the runtime is unsupported.
-3. Choose a theme with `list`, or create one from the user's image.
-4. Execute `apply --theme ID` without restart permission only to attempt an authenticated hot switch. If it succeeds, report the result and stop.
-5. If a restart is required, stop and offer exactly two choices before closing WorkBuddy:
-   - **Agent apply**: after one explicit restart confirmation, execute `apply --theme ID --restart confirmed`, wait for the single handoff result, then run `verify` once.
-   - **Manual Terminal**: do not execute, restart, or diagnose anything. Return one exact installed `terminal-apply --theme ID --restart confirmed` command for the current platform. It synchronously closes WorkBuddy, launches CDP, injects the skin, and verifies it.
-6. Respect the selected mode. Never run Agent apply before offering the choice, never treat Manual Terminal as a failure fallback, and never switch modes without a new user request.
-7. For Agent apply, `status: pending` means the detached restart worker owns the transaction. Do not start another apply. Read the one saved completion result and verify once after WorkBuddy reopens.
-8. The restart transaction precisely closes the verified WorkBuddy process family, waits for resources to settle, launches fixed-port loopback CDP once, injects once, and verifies once.
-9. If either mode fails, report only its final JSON error plus the launch-log path. Do not restart, retry, run extra process diagnostics, infer proxy causes, or switch to the other mode automatically.
-10. Never hide a CDP failure by launching WorkBuddy normally. When reading logs, use entries from the current transaction timestamp only; do not treat historical `did not quit cleanly` or old-port entries as the current implementation's result.
+3. Choose a theme with `list`, or create one from the user's image. Do not execute `apply` yet, including an unconfirmed hot-switch probe.
+4. Present exactly this two-option choice with the selected theme name and wait for the user's answer:
+   - **① 确认 apply**：Agent 执行并验证皮肤；如果需要重启，可能丢失未保存内容。
+   - **② 复制命令跑**：Agent 不操作 WorkBuddy，只返回一条完整的本机终端命令。
+5. If the user selects **① 确认 apply**, execute `apply --theme ID --restart confirmed`, wait for the single handoff result, then run `verify` once. Treat this selection as the one restart confirmation.
+6. If the user selects **② 复制命令跑**, do not execute, restart, inspect processes, or diagnose anything. Return one exact installed `terminal-apply --theme ID --restart confirmed` command for the current platform.
+7. Respect the selected mode. Never execute any apply before offering the choice, never treat the command as a failure fallback, and never switch modes without a new user request.
+8. For Agent apply, `status: pending` means the detached restart worker owns the transaction. Do not start another apply. Read the one saved completion result and verify once after WorkBuddy reopens.
+9. The restart transaction precisely closes the verified WorkBuddy process family, waits for resources to settle, launches fixed-port loopback CDP once, injects once, and verifies once.
+10. If either mode fails, report only its final JSON error plus the launch-log path. Do not restart, retry, run extra process diagnostics, infer proxy causes, or switch to the other mode automatically.
+11. Never hide a CDP failure by launching WorkBuddy normally. When reading logs, use entries from the current transaction timestamp only; do not treat historical `did not quit cleanly` or old-port entries as the current implementation's result.
 
 ## Apply a built-in theme
 
