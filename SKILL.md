@@ -26,11 +26,11 @@ Execute the entry point yourself by default. Use Terminal as a documented fallba
 2. Stop if WorkBuddy is missing, the macOS bundle id or Windows executable identity is invalid, or the runtime is unsupported.
 3. Choose a theme with `list`, or create one from the user's image.
 4. Always execute `apply --theme ID` for a conversational theme request. A valid Session Passport makes this a no-restart hot switch without host PID access.
-5. If `apply` reports that a restart is required, tell the user to save unsaved WorkBuddy work and obtain one explicit permission in chat for the complete restart transaction. Explain that WorkBuddy is tried gracefully first and, if blocked, the same authorization permits precisely ending the verified official WorkBuddy process family; unsaved input may be lost. After confirmation, execute the same command with `--restart confirmed`; never ask the user to run it by default.
-6. When no authenticated CDP session exists, `apply --restart confirmed` starts a detached graceful handoff and returns `status: pending`; do not start a second apply.
-7. WorkBuddy closes normally, reopens, signs a new Session Passport, and applies the skin. Complete the handoff from renderer markers and the requested theme id; do not repeat host-process ownership verification after a trusted launch. Run `verify` or `status` only for later diagnostics.
+5. If `apply` reports that a restart is required, tell the user to save unsaved WorkBuddy work and obtain one explicit permission in chat. Explain that the confirmed flow precisely closes the verified official WorkBuddy process family and may discard unsaved input. After confirmation, execute the same command with `--restart confirmed`; never ask the user to run it by default.
+6. When no authenticated CDP session exists, `apply --restart confirmed` starts a detached restart worker and returns `status: pending`; do not start a second apply.
+7. The worker closes WorkBuddy, launches it once with loopback CDP, signs a new Session Passport, injects the requested skin, and verifies renderer markers plus the theme id. Do not repeat host-process ownership verification after the trusted launch. Run `verify` or `status` only for later diagnostics.
 8. Report the active theme and visual mode. Mention the loopback port or restore command only when useful.
-9. The restart transaction is one-shot: try graceful shutdown, fall back automatically to precise forced shutdown only when graceful shutdown times out, wait for resources to settle, launch once, inject once, and verify once. Never ask for a second confirmation and never rerun `apply` internally.
+9. The restart transaction is one-shot: precisely close the verified WorkBuddy process family, wait for resources to settle, launch once with CDP, inject once, and verify once. Never ask for a second confirmation and never rerun `apply` internally.
 10. The injector may reconnect to a refreshed renderer once, but it must never restart WorkBuddy for that retry. If the handoff result is `failed`, never rerun `apply`, restart WorkBuddy, or start another handoff automatically. Report the saved error and stop. The engine requests a normal WorkBuddy launch as a fallback when CDP startup or injection fails.
 11. If the agent environment cannot see the host process, cannot launch the detached handoff, cannot send the precisely targeted signal, or cannot access the installed skill, give the user one exact, quoted Terminal command for the detected platform and theme. Explain why host Terminal is required, include `--restart confirmed` only after the user authorized the complete restart transaction, and ask the user to paste the JSON result. Do not weaken ownership checks or patch in a process-name fallback.
 
@@ -99,11 +99,11 @@ scripts/workbuddy-ambient.sh restore --restart confirmed
 
 - Bind CDP only to `127.0.0.1`; warn users not to run untrusted local software while it is active.
 - Require explicit permission before closing or restarting WorkBuddy.
-- Never close WorkBuddy without explicit permission. One `--restart confirmed` authorizes one bounded restart transaction: graceful shutdown first, then precise forced shutdown of only the revalidated official WorkBuddy process family if needed.
+- Never close WorkBuddy without explicit permission. One `--restart confirmed` authorizes one bounded restart transaction that precisely closes only the revalidated official WorkBuddy process family.
 - Force only the revalidated official WorkBuddy process family: on macOS require each process's first executable mapping to live inside the official app bundle; on Windows require the exact verified installation path. Never use `pkill Electron`, `killall Electron`, `taskkill /IM`, or another broad process-name kill.
 - On Windows, accept only a resolved `WorkBuddy.exe` from an explicit override, known install location, or WorkBuddy uninstall registry entry, and require a valid signature or matching product identity.
 - On Windows, serialize public operations with the per-user named mutex and verify CDP ownership through the exact executable process tree.
-- Let the built-in graceful handoff survive the host restart. Do not wrap `apply` in another `nohup`, `pkill`, or custom restart script.
+- Let the built-in detached restart worker survive the host restart. Do not wrap `apply` in another `nohup`, `pkill`, or custom restart script.
 - Accept only the exact WorkBuddy renderer URL shape and native DOM markers.
 - Sign a Session Passport only after this skill launched WorkBuddy or verified the official WorkBuddy process tree. For later hot switches, require the saved Browser ID and renderer HMAC challenge to match.
 - Never accept a listener merely because `lsof` labels it Electron or WorkBuddy. A process-name fallback is not a valid ownership proof.
@@ -124,7 +124,7 @@ Treat the operation as successful only when `verify` reports an installed render
 - `status: pending` with `handoff: true` means the restart was safely delegated; wait for WorkBuddy to reopen instead of launching another apply.
 - `the active skin session could not be authenticated` means neither the Session Passport nor the visible process tree proved ownership. Ask for restart permission in chat and execute `apply --restart confirmed` yourself.
 - If the same authentication or handoff failure remains because the agent sandbox cannot reach host state, provide the exact installed entry-point command as the final fallback. Use the real detected path, quote it, and include `--restart confirmed` only after the user authorized a restart.
-- `WorkBuddy did not quit cleanly` should be absorbed inside a confirmed restart transaction by the precise forced-shutdown fallback. If it escapes, process identity could not be revalidated or the verified process survived; report the exact error and do not broaden the kill target.
+- A forced-shutdown error means process identity could not be revalidated or a verified process survived. Report the exact error and do not broaden the kill target.
 - `WorkBuddy normal launch was requested as fallback` means CDP startup or injection failed after the single restart attempt. WorkBuddy was asked to reopen normally; report the error and do not run `apply` again automatically.
 - The macOS launch log is `~/Library/Application Support/WorkBuddyAmbientSkin/workbuddy-launch.log`. Read it when CDP does not appear after restart; do not speculate about injection until this log and port `9223` are checked.
 - `WorkBuddy DOM ... missing markers` means CDP discovery and ownership verification already passed. Diagnose renderer readiness or a WorkBuddy DOM adapter change; do not attribute this error to the single-instance lock or process-query sandbox.

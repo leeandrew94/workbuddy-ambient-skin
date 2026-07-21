@@ -12,7 +12,7 @@ import { applyToRenderer, removeFromRenderer, rendererStatus, verifyRendererPass
 import { createPassport, publicState, validPassport } from "./lib/session.mjs";
 import { stopForRestart } from "./lib/restart.mjs";
 import { createTheme, deleteUserTheme, listThemes, renameUserTheme } from "./lib/theme.mjs";
-import { forceQuitWorkBuddy, inspectWorkBuddy, isWorkBuddyRunning, launchNormally, launchWithCdp, processCommand, quitWorkBuddy, selectPort, verifiedCdpOwner } from "./lib/workbuddy.mjs";
+import { forceQuitWorkBuddy, inspectWorkBuddy, isWorkBuddyRunning, launchNormally, launchWithCdp, processCommand, selectPort, verifiedCdpOwner } from "./lib/workbuddy.mjs";
 import { chooseApplyPath } from "./lib/workflow.mjs";
 
 const entryPath = fileURLToPath(import.meta.url);
@@ -122,10 +122,10 @@ async function applyDirect(options) {
         : `${detail}; rerun with --restart confirmed to launch WorkBuddy`);
     }
     if (targets.length && options["replace-session"] !== "confirmed") {
-      throw new Error("the active skin session is not authenticated; use the graceful handoff to replace it");
+      throw new Error("the active skin session is not authenticated; use the confirmed restart worker to replace it");
     }
     await stopWatcher(previous);
-    shutdown = await stopForRestart({ restartConfirmed: options.restart, quit: quitWorkBuddy, forceQuit: forceQuitWorkBuddy });
+    shutdown = await stopForRestart({ restartConfirmed: options.restart, forceQuit: forceQuitWorkBuddy });
     selectedPort = await selectPort(selectedPort);
     try {
       launch = await launchWithCdp(selectedPort);
@@ -168,7 +168,7 @@ async function startHandoff(options) {
   const reservation = await reserveHandoff(paths, { theme: activeId, port: selectedPort, watch: options.watch });
   await writeState({ schemaVersion: 2, version: VERSION, status: "handoff", themeId: activeId, port: selectedPort, watcherPid: null, watcherGeneration: null, updatedAt: new Date().toISOString() });
   const log = await open(paths.logPath, "a", 0o600);
-  await log.write(`\n[${new Date().toISOString()}] graceful handoff started: ${activeId}\n`);
+  await log.write(`\n[${new Date().toISOString()}] restart worker started: ${activeId}\n`);
   try {
     const child = spawn(process.execPath, [entryPath, ...handoffArguments({ ...options, theme: activeId, port: selectedPort }, reservation.token)], {
       detached: true, stdio: ["ignore", log.fd, log.fd],
@@ -201,7 +201,6 @@ async function runHandoff(options) {
       status: "complete", ok: true, themeId: applied.themeId, port: applied.port,
       mode: renderers[0]?.mode ?? null,
       forceRestarted: applied.forceRestarted ?? false,
-      ...(applied.gracefulError ? { gracefulError: applied.gracefulError } : {}),
     });
     return { ok: true, handoff: true, ...result };
   } catch (error) {
@@ -224,7 +223,7 @@ async function pause(options) {
 async function restore(options) {
   if (options.restart !== "confirmed") throw new Error("restore closes and reopens WorkBuddy; rerun with --restart confirmed");
   const paused = await pause(options);
-  const shutdown = await stopForRestart({ restartConfirmed: options.restart, quit: quitWorkBuddy, forceQuit: forceQuitWorkBuddy });
+  const shutdown = await stopForRestart({ restartConfirmed: options.restart, forceQuit: forceQuitWorkBuddy });
   await launchNormally();
   await writeState({ schemaVersion: 2, version: VERSION, status: "restored", watcherPid: null, watcherGeneration: null, updatedAt: new Date().toISOString() });
   return { ok: true, restored: true, paused, ...shutdown };
