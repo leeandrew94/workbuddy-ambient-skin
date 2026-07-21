@@ -65,17 +65,50 @@ scripts/workbuddy-ambient.sh delete --theme THEME_ID --confirm yes
 
 支持 PNG、JPEG、WebP，单张不超过 15 MB、5000 万像素。纯背景图通常比带文字、按钮或界面截图的图片更自然。
 
-## 内置氛围
+## 内置主题
 
-| 主题 | 感觉 | 适合 |
-|---|---|---|
-| `paper-aurora` | 浅灰、冰蓝、通透 | 文档与日常办公 |
-| `miku-neko-maid` | 青色、软萌、明亮 | 首页展示与轻松工作 |
-| `doraemon-snow-fortune` | 冰雪、暖金、节日感 | 冬日与新年氛围 |
+以下预览均为 WorkBuddy 实际应用主题后的界面效果。
 
-晨雾极光由原创 CSS 渐变生成，并启用轻量 Material Layer：半透明分区、柔和层次和统一圆角。聊天区避免使用明显彩色描边，工作页与详情页会自动提高遮罩强度，以文字清晰度为优先。
+### 晨雾极光 / Paper Aurora
 
-“初音未来 · 猫咪女仆”和“哆啦A梦 · 瑞雪迎福”使用项目维护者提供的图片，并由 OKLCH 引擎自动生成界面配色。角色及素材相关权利归相应权利方所有；公开分发前请确认素材授权范围。
+浅灰与冰蓝组成的通透办公主题。背景由原创 CSS 渐变生成，聊天区保持克制，适合文档与日常工作。
+
+<p align="center">
+  <img src="assets/images/preview-paper-aurora.png" alt="晨雾极光主题预览" width="900"><br>
+  <sub>浅色 · 原创渐变 · 真实 WorkBuddy 注入效果</sub>
+</p>
+
+```bash
+scripts/workbuddy-ambient.sh apply --theme paper-aurora --restart confirmed
+```
+
+### 初音未来 · 猫咪女仆 / Miku Neko Maid
+
+青色、柔白与轻粉构成的明亮主题。OKLCH 引擎会从图片自动生成界面配色，适合首页展示与轻松工作。
+
+<p align="center">
+  <img src="assets/images/preview-miku-neko-maid.png" alt="初音未来猫咪女仆主题预览" width="900"><br>
+  <sub>青色明亮 · 自动取色 · 真实 WorkBuddy 注入效果</sub>
+</p>
+
+```bash
+scripts/workbuddy-ambient.sh apply --theme miku-neko-maid --restart confirmed
+```
+
+### 哆啦A梦 · 瑞雪迎福 / Doraemon Snow Fortune
+
+冰雪蓝、灯笼红与暖金光线构成的节日主题。工作页和详情页会自动降低壁纸强度，兼顾氛围与阅读。
+
+<p align="center">
+  <img src="assets/images/preview-doraemon-snow-fortune.png" alt="哆啦A梦瑞雪迎福主题预览" width="900"><br>
+  <sub>冬日暖金 · 自动取色 · 真实 WorkBuddy 注入效果</sub>
+</p>
+
+```bash
+scripts/workbuddy-ambient.sh apply --theme doraemon-snow-fortune --restart confirmed
+```
+
+两套角色主题使用项目维护者提供的图片。角色及素材相关权利归相应权利方所有；公开分发前请确认素材授权范围。
 
 ## 日常动作
 
