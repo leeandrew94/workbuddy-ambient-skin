@@ -77,13 +77,14 @@ export async function selectPort(preferred = DEFAULT_PORT) {
   throw new Error("no free loopback CDP port was found");
 }
 
-export async function quitWorkBuddy({ timeoutMs = 15000, isRunning = isWorkBuddyRunning } = {}) {
+export async function quitWorkBuddy({ timeoutMs = 15000, isRunning = isWorkBuddyRunning, findPids = exactWorkBuddyPids } = {}) {
   const wasRunning = await isRunning();
-  if (!wasRunning) return { wasRunning: false, stopped: true };
-  await execFile("/usr/bin/osascript", ["-e", 'tell application "WorkBuddy" to quit']).catch(() => {});
+  const initialPids = await findPids();
+  if (!wasRunning && !initialPids.length) return { wasRunning: false, stopped: true };
+  if (wasRunning) await execFile("/usr/bin/osascript", ["-e", 'tell application "WorkBuddy" to quit']).catch(() => {});
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (!await isRunning()) return { wasRunning: true, stopped: true };
+    if (!await isRunning() && !(await findPids()).length) return { wasRunning: wasRunning || initialPids.length > 0, stopped: true };
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error("WorkBuddy did not quit cleanly; no process was force-killed");
@@ -110,13 +111,16 @@ export async function exactWorkBuddyPids(run = execFile) {
   } catch { return []; }
 }
 
-export async function forceQuitWorkBuddy({ timeoutMs = 5000, inspect = inspectWorkBuddy, findPids = exactWorkBuddyPids, signal = process.kill } = {}) {
+export async function forceQuitWorkBuddy({ timeoutMs = 5000, settleMs = 2000, inspect = inspectWorkBuddy, findPids = exactWorkBuddyPids, signal = process.kill, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
   const info = await inspect();
   if (!info.appFound || !info.bundleMatches || info.executable !== executable) {
     throw new Error("official WorkBuddy bundle identity could not be verified; refusing forced restart");
   }
   const initial = await findPids();
-  if (!initial.length) return { wasRunning: false, stopped: true, forced: false, pids: [] };
+  if (!initial.length) {
+    await sleep(settleMs);
+    return { wasRunning: false, stopped: true, forced: false, pids: [], settledMs: settleMs };
+  }
   for (const pid of initial) {
     try { signal(pid, "SIGTERM"); } catch (error) { if (error.code !== "ESRCH") throw error; }
   }
@@ -124,28 +128,39 @@ export async function forceQuitWorkBuddy({ timeoutMs = 5000, inspect = inspectWo
   let remaining = initial;
   while (Date.now() < deadline) {
     remaining = (await findPids()).filter((pid) => initial.includes(pid));
-    if (!remaining.length) return { wasRunning: true, stopped: true, forced: true, pids: initial };
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    if (!remaining.length) {
+      await sleep(settleMs);
+      return { wasRunning: true, stopped: true, forced: true, pids: initial, settledMs: settleMs };
+    }
+    await sleep(250);
   }
   // Re-query the exact executable mapping immediately before SIGKILL to guard against PID reuse.
   remaining = (await findPids()).filter((pid) => initial.includes(pid));
   for (const pid of remaining) {
     try { signal(pid, "SIGKILL"); } catch (error) { if (error.code !== "ESRCH") throw error; }
   }
-  await new Promise((resolve) => setTimeout(resolve, 250));
+  await sleep(250);
   const survivors = (await findPids()).filter((pid) => initial.includes(pid));
   if (survivors.length) throw new Error(`verified WorkBuddy process did not stop after forced restart: ${survivors.join(", ")}`);
-  return { wasRunning: true, stopped: true, forced: true, pids: initial };
+  await sleep(settleMs);
+  return { wasRunning: true, stopped: true, forced: true, pids: initial, settledMs: settleMs };
 }
 
-export async function launchWithCdp(port) {
+export async function launchWithCdp(port, { strategy = "direct" } = {}) {
   const info = await inspectWorkBuddy();
   if (!info.appFound || !info.bundleMatches) throw new Error("official WorkBuddy bundle was not found at /Applications/WorkBuddy.app");
-  const child = spawn(executable, [`--remote-debugging-address=127.0.0.1`, `--remote-debugging-port=${port}`], {
-    detached: true, stdio: "ignore",
-  });
+  const args = [`--remote-debugging-address=127.0.0.1`, `--remote-debugging-port=${port}`];
+  if (strategy === "launch-services") {
+    await execFile("/usr/bin/open", ["-n", APP_PATH, "--args", ...args]);
+    return { pid: null, port, executable, strategy };
+  }
+  if (strategy !== "direct") throw new Error(`unsupported WorkBuddy launch strategy: ${strategy}`);
+  const env = { ...process.env };
+  delete env.ELECTRON_RUN_AS_NODE;
+  delete env.NODE_OPTIONS;
+  const child = spawn(executable, args, { detached: true, stdio: "ignore", env });
   child.unref();
-  return { pid: child.pid, port, executable };
+  return { pid: child.pid, port, executable, strategy };
 }
 
 export async function launchNormally() {

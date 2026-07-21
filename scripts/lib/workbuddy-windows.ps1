@@ -115,7 +115,8 @@ switch ($Action) {
     }
     $remaining = @(Get-ExactProcesses $info.executable -MainOnly | Where-Object { $initialPids -contains [int]$_.ProcessId })
     if ($remaining.Count -gt 0) { throw 'Verified WorkBuddy process did not stop after forced restart' }
-    Write-Json @{ wasRunning = $true; stopped = $true; forced = $true; pids = $initialPids }
+    Start-Sleep -Milliseconds 2000
+    Write-Json @{ wasRunning = $true; stopped = $true; forced = $true; pids = $initialPids; settledMs = 2000 }
     break
   }
   'launch-cdp' {
