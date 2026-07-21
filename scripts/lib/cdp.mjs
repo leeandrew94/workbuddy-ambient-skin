@@ -15,6 +15,33 @@ export function validDebuggerUrl(value, port) {
   return url.href;
 }
 
+export function validBrowserDebuggerUrl(value, port) {
+  assertPort(port);
+  const url = new URL(value);
+  if (url.protocol !== "ws:" || url.hostname !== "127.0.0.1" || Number(url.port) !== port
+    || url.username || url.password || url.search || url.hash
+    || !/^\/devtools\/browser\/[A-Za-z0-9._-]{1,200}$/.test(url.pathname)) {
+    throw new Error("rejected non-loopback or malformed browser WebSocket URL");
+  }
+  return { url: url.href, browserId: url.pathname.slice("/devtools/browser/".length) };
+}
+
+export async function fetchBrowserIdentity(port, { timeoutMs = 2000, fetchImpl = globalThis.fetch } = {}) {
+  assertPort(port);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImpl(`http://127.0.0.1:${port}/json/version`, { redirect: "error", signal: controller.signal });
+    if (!response.ok) throw new Error(`CDP version discovery returned HTTP ${response.status}`);
+    const payload = await response.json();
+    if (!payload || typeof payload !== "object" || typeof payload.Browser !== "string" || !payload.Browser.trim()) {
+      throw new Error("malformed CDP browser identity");
+    }
+    const identity = validBrowserDebuggerUrl(payload.webSocketDebuggerUrl, port);
+    return { ...identity, product: payload.Browser };
+  } finally { clearTimeout(timer); }
+}
+
 export function filterWorkBuddyTargets(targets, port) {
   if (!Array.isArray(targets)) throw new Error("malformed CDP target list");
   return targets.filter((target) => {

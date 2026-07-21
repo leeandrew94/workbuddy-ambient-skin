@@ -37,7 +37,7 @@ New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $stage -Force | Out-Null
 
 try {
-  foreach ($name in @('SKILL.md', 'README.md', 'package.json', 'agents', 'assets', 'references', 'scripts')) {
+  foreach ($name in @('SKILL.md', 'README.md', 'package.json', 'assets', 'references', 'scripts')) {
     $source = Join-Path $skillRoot $name
     if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination $stage -Recurse -Force }
   }

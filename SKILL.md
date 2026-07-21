@@ -18,16 +18,18 @@ scripts\workbuddy-ambient.ps1 <command> [options]
 ```
 
 Read JSON output and report the concrete result. Do not reconstruct CDP commands manually.
+Execute the entry point yourself. Do not send the user to Terminal or expose an installation-path command unless the user explicitly asks for manual CLI instructions.
 
 ## Workflow
 
 1. Run `scripts/workbuddy-ambient.sh doctor` on macOS or `scripts\workbuddy-ambient.ps1 doctor` on Windows.
 2. Stop if WorkBuddy is missing, the macOS bundle id or Windows executable identity is invalid, or the runtime is unsupported.
 3. Choose a theme with `list`, or create one from the user's image.
-4. If applying requires a restart, tell the user to save unsaved WorkBuddy work and obtain explicit permission.
-5. Apply the skin. When no verified CDP session exists, `apply` starts a detached graceful handoff and returns `status: pending`; do not start a second apply.
-6. WorkBuddy closes normally and reopens with the skin. After relaunch, run `verify` or `status` to read the recorded handoff result.
-7. Report the active theme, visual mode, loopback port, and restore option.
+4. Always execute `apply --theme ID` for a conversational theme request. A valid Session Passport makes this a no-restart hot switch without host PID access.
+5. If `apply` reports that a restart is required, tell the user to save unsaved WorkBuddy work and obtain explicit permission in chat. After confirmation, execute the same command with `--restart confirmed`; never ask the user to run it.
+6. When no authenticated CDP session exists, `apply --restart confirmed` starts a detached graceful handoff and returns `status: pending`; do not start a second apply.
+7. WorkBuddy closes normally, reopens, signs a new Session Passport, and applies the skin. Run `verify` or `status` to read the recorded handoff result.
+8. Report the active theme and visual mode. Mention the loopback port or restore command only when useful.
 
 ## Apply a built-in theme
 
@@ -44,7 +46,7 @@ scripts/workbuddy-ambient.sh apply --theme paper-aurora --restart confirmed
 scripts/workbuddy-ambient.sh verify
 ```
 
-The bundled safe default is `paper-aurora`, a light theme tuned for readable text. `miku-neko-maid` and `doraemon-snow-fortune` are image-based light presets with automatic OKLCH colors. Personal images provide additional visual styles.
+The bundled safe default is `paper-aurora`, a light theme tuned for readable text. `miku-neko-maid` and `doraemon-snow-fortune` are image-based light presets with automatic OKLCH colors. Personal images provide additional visual styles. Do not substitute `switch` for this conversational workflow; `apply` already chooses the authenticated hot path or the safe restart path.
 
 ## Create a theme from an image
 
@@ -99,6 +101,9 @@ scripts/workbuddy-ambient.sh restore --restart confirmed
 - On Windows, serialize public operations with the per-user named mutex and verify CDP ownership through the exact executable process tree.
 - Let the built-in graceful handoff survive the host restart. Do not wrap `apply` in another `nohup`, `pkill`, or custom restart script.
 - Accept only the exact WorkBuddy renderer URL shape and native DOM markers.
+- Sign a Session Passport only after this skill launched WorkBuddy or verified the official WorkBuddy process tree. For later hot switches, require the saved Browser ID and renderer HMAC challenge to match.
+- Never accept a listener merely because `lsof` labels it Electron or WorkBuddy. A process-name fallback is not a valid ownership proof.
+- Keep the passport secret only in the mode-`0600` state file and renderer closure. Never print it in `doctor`, `status`, logs, or command arguments.
 - Stop a watcher only when its PID command matches this skill's exact entry point and `watch` command.
 - Keep decoration non-interactive and keep work/detail backgrounds quieter than the home background.
 - Apply Material Layer effects only to known WorkBuddy regions. Keep panel surfaces opaque enough for readable text and retain visible keyboard focus.
@@ -113,5 +118,5 @@ Treat the operation as successful only when `verify` reports an installed render
 
 - `fetch failed` means the saved/default CDP port is unavailable; diagnose launch or port state.
 - `status: pending` with `handoff: true` means the restart was safely delegated; wait for WorkBuddy to reopen instead of launching another apply.
-- `the CDP listener is not owned by WorkBuddy` means the loopback listener ownership check failed; diagnose the listener and process tree.
+- `the active skin session could not be authenticated` means neither the Session Passport nor the visible process tree proved ownership. Ask for restart permission in chat and execute `apply --restart confirmed` yourself.
 - `WorkBuddy DOM ... missing markers` means CDP discovery and ownership verification already passed. Diagnose renderer readiness or a WorkBuddy DOM adapter change; do not attribute this error to the single-instance lock or process-query sandbox.

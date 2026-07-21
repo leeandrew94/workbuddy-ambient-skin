@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { access, mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, chmod, mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { bundledThemesRoot, DEFAULT_PORT, studioPaths, VERSION } from "./lib/constants.mjs";
-import { fetchTargets, waitForTargets } from "./lib/cdp.mjs";
+import { fetchBrowserIdentity, fetchTargets, waitForTargets } from "./lib/cdp.mjs";
 import { finishHandoff, handoffArguments, readHandoffResult, reserveHandoff, validateHandoff } from "./lib/handoff.mjs";
-import { applyToRenderer, removeFromRenderer, rendererStatus, watchRenderer } from "./lib/injector.mjs";
+import { applyToRenderer, removeFromRenderer, rendererStatus, verifyRendererPassport, watchRenderer } from "./lib/injector.mjs";
+import { createPassport, publicState, validPassport } from "./lib/session.mjs";
 import { createTheme, deleteUserTheme, listThemes, renameUserTheme } from "./lib/theme.mjs";
 import { inspectWorkBuddy, isWorkBuddyRunning, launchNormally, launchWithCdp, processCommand, quitWorkBuddy, selectPort, verifiedCdpOwner } from "./lib/workbuddy.mjs";
+import { chooseApplyPath } from "./lib/workflow.mjs";
 
 const entryPath = fileURLToPath(import.meta.url);
 const paths = studioPaths();
@@ -39,7 +42,8 @@ async function readState() {
 }
 
 async function writeState(state) {
-  await mkdir(paths.stateRoot, { recursive: true });
+  await mkdir(paths.stateRoot, { recursive: true, mode: 0o700 });
+  await chmod(paths.stateRoot, 0o700).catch(() => {});
   const temporary = `${paths.statePath}.${process.pid}.tmp`;
   await writeFile(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
   await rename(temporary, paths.statePath);
@@ -61,12 +65,30 @@ async function stopWatcher(state) {
   try { process.kill(pid, "SIGTERM"); return true; } catch { return false; }
 }
 
-async function startWatcher(portNumber) {
-  const child = spawn(process.execPath, [entryPath, "watch", "--port", String(portNumber)], {
+async function startWatcher(portNumber, generation) {
+  const child = spawn(process.execPath, [entryPath, "watch", "--port", String(portNumber), "--generation", generation], {
     detached: true, stdio: "ignore",
   });
   child.unref();
   return child.pid;
+}
+
+async function passportForPort(portNumber) {
+  const identity = await fetchBrowserIdentity(portNumber);
+  return createPassport(identity.browserId);
+}
+
+async function authorizeLiveSession(state, portNumber) {
+  if (state?.port === portNumber && validPassport(state.passport)) {
+    try {
+      const proof = await verifyRendererPassport({ port: portNumber, passport: state.passport });
+      if (proof.trusted) return { ownership: "session-passport", passport: state.passport };
+    } catch {}
+  }
+  if (await verifiedCdpOwner(portNumber)) {
+    return { ownership: "process-tree", passport: await passportForPort(portNumber) };
+  }
+  return null;
 }
 
 async function validateTheme(options) {
@@ -83,34 +105,41 @@ async function applyDirect(options) {
   let selectedPort = port(options.port ?? previous?.port);
   let targets = await liveTargets(selectedPort);
   let launch = null;
-  if (!targets.length) {
+  let authorization = targets.length ? await authorizeLiveSession(previous, selectedPort) : null;
+  if (!targets.length || !authorization) {
     if (options.restart !== "confirmed") {
       const running = await isWorkBuddyRunning();
+      const detail = targets.length ? "the active skin session could not be authenticated from this sandbox" : "WorkBuddy needs a loopback CDP session";
       throw new Error(running
-        ? "WorkBuddy must restart to enable the skin; save work and rerun with --restart confirmed"
-        : "rerun with --restart confirmed to launch WorkBuddy with loopback CDP");
+        ? `${detail}; save work and rerun with --restart confirmed`
+        : `${detail}; rerun with --restart confirmed to launch WorkBuddy`);
+    }
+    if (targets.length && options["replace-session"] !== "confirmed") {
+      throw new Error("the active skin session is not authenticated; use the graceful handoff to replace it");
     }
     await stopWatcher(previous);
     await quitWorkBuddy();
     selectedPort = await selectPort(selectedPort);
     launch = await launchWithCdp(selectedPort);
     targets = await waitForTargets(selectedPort);
+    authorization = { ownership: "spawn-capability", passport: await passportForPort(selectedPort) };
   }
-  const ownership = launch ? "spawn-capability" : await verifiedCdpOwner(selectedPort) ? "process-tree" : null;
-  if (!ownership) throw new Error("the CDP listener is not owned by WorkBuddy or its verified process tree");
-  const result = await applyToRenderer({ port: selectedPort, themes: allThemes, activeId });
+  const { ownership, passport } = authorization;
+  const result = await applyToRenderer({ port: selectedPort, themes: allThemes, activeId, passport });
   await stopWatcher(previous);
-  const watcherPid = options.watch === "false" ? null : await startWatcher(selectedPort);
+  const watcherGeneration = options.watch === "false" ? null : randomUUID();
   const state = {
-    schemaVersion: 1, version: VERSION, status: "active", port: selectedPort,
-    themeId: activeId, appPid: launch?.pid ?? null, watcherPid,
-    ownership,
+    schemaVersion: 2, version: VERSION, status: "active", port: selectedPort,
+    themeId: activeId, appPid: launch?.pid ?? previous?.appPid ?? null, watcherPid: null,
+    watcherGeneration, ownership, passport,
     executable: launch?.executable ?? previous?.executable ?? null,
     platform: process.platform,
     updatedAt: new Date().toISOString(),
   };
   await writeState(state);
-  return { ok: true, ...result, port: selectedPort, watcherPid };
+  const watcherPid = watcherGeneration ? await startWatcher(selectedPort, watcherGeneration) : null;
+  await writeState({ ...state, watcherPid, updatedAt: new Date().toISOString() });
+  return { ok: true, ...result, port: selectedPort, watcherPid, ownership, sessionPassport: true };
 }
 
 async function startHandoff(options) {
@@ -119,7 +148,7 @@ async function startHandoff(options) {
   const selectedPort = port(options.port ?? previous?.port);
   await mkdir(paths.stateRoot, { recursive: true });
   const reservation = await reserveHandoff(paths, { theme: activeId, port: selectedPort, watch: options.watch });
-  await writeState({ schemaVersion: 1, version: VERSION, status: "handoff", themeId: activeId, port: selectedPort, watcherPid: null, updatedAt: new Date().toISOString() });
+  await writeState({ schemaVersion: 2, version: VERSION, status: "handoff", themeId: activeId, port: selectedPort, watcherPid: null, watcherGeneration: null, updatedAt: new Date().toISOString() });
   const log = await open(paths.logPath, "a", 0o600);
   await log.write(`\n[${new Date().toISOString()}] graceful handoff started: ${activeId}\n`);
   try {
@@ -136,21 +165,23 @@ async function startHandoff(options) {
 async function apply(options) {
   const previous = await readState();
   const selectedPort = port(options.port ?? previous?.port);
-  if ((await liveTargets(selectedPort)).length || options.restart !== "confirmed") return applyDirect(options);
-  return startHandoff(options);
+  const targets = await liveTargets(selectedPort);
+  const authorization = targets.length ? await authorizeLiveSession(previous, selectedPort) : null;
+  const path = chooseApplyPath({ targetsAvailable: targets.length > 0, authenticated: Boolean(authorization), restartConfirmed: options.restart === "confirmed" });
+  return path === "handoff" ? startHandoff(options) : applyDirect(options);
 }
 
 async function runHandoff(options) {
   const token = options["handoff-token"];
   const reservation = await validateHandoff(paths, token);
   try {
-    const applied = await applyDirect({ theme: reservation.themeId, port: String(reservation.port), watch: reservation.watch ? "true" : "false", restart: "confirmed" });
+    const applied = await applyDirect({ theme: reservation.themeId, port: String(reservation.port), watch: reservation.watch ? "true" : "false", restart: "confirmed", "replace-session": "confirmed" });
     const verification = await status({ port: String(applied.port) });
     if (!verification.ok) throw new Error("skin handoff applied but verification failed");
     const result = await finishHandoff(paths, token, { status: "complete", ok: true, themeId: applied.themeId, port: applied.port, mode: verification.renderers[0]?.mode ?? null });
     return { ok: true, handoff: true, ...result };
   } catch (error) {
-    await writeState({ schemaVersion: 1, version: VERSION, status: "failed", themeId: reservation.themeId, port: reservation.port, watcherPid: null, error: error.message, updatedAt: new Date().toISOString() });
+    await writeState({ schemaVersion: 2, version: VERSION, status: "failed", themeId: reservation.themeId, port: reservation.port, watcherPid: null, watcherGeneration: null, error: error.message, updatedAt: new Date().toISOString() });
     await finishHandoff(paths, token, { status: "failed", ok: false, error: error.message });
     throw error;
   }
@@ -162,7 +193,7 @@ async function pause(options) {
   const watcherStopped = await stopWatcher(state);
   let result = { removed: 0 };
   try { result = await removeFromRenderer(selectedPort); } catch {}
-  await writeState({ ...(state || {}), status: "paused", watcherPid: null, updatedAt: new Date().toISOString() });
+  await writeState({ ...(state || {}), status: "paused", watcherPid: null, watcherGeneration: null, updatedAt: new Date().toISOString() });
   return { ok: true, ...result, watcherStopped, port: selectedPort };
 }
 
@@ -171,7 +202,7 @@ async function restore(options) {
   const paused = await pause(options);
   await quitWorkBuddy();
   await launchNormally();
-  await writeState({ schemaVersion: 1, version: VERSION, status: "restored", watcherPid: null, updatedAt: new Date().toISOString() });
+  await writeState({ schemaVersion: 2, version: VERSION, status: "restored", watcherPid: null, watcherGeneration: null, updatedAt: new Date().toISOString() });
   return { ok: true, restored: true, paused };
 }
 
@@ -180,10 +211,11 @@ async function status(options) {
   const handoff = await readHandoffResult(paths).catch(() => null);
   const selectedPort = port(options.port ?? state?.port);
   try {
+    const session = await authorizeLiveSession(state, selectedPort);
     const renderers = await rendererStatus(selectedPort);
-    return { ok: renderers.length > 0 && renderers.every((renderer) => renderer.pass), state, handoff, port: selectedPort, renderers };
+    return { ok: Boolean(session) && renderers.length > 0 && renderers.every((renderer) => renderer.pass), state: publicState(state), handoff, port: selectedPort, ownership: session?.ownership ?? null, renderers };
   } catch (error) {
-    return { ok: false, state, handoff, port: selectedPort, renderers: [], error: error.message };
+    return { ok: false, state: publicState(state), handoff, port: selectedPort, renderers: [], error: error.message };
   }
 }
 
@@ -197,7 +229,7 @@ export async function run(argv) {
     const app = await inspectWorkBuddy();
     const state = await readState();
     const identityValid = app.identityValid ?? app.bundleMatches;
-    return { ok: app.appFound && identityValid && Number(process.versions.node.split(".")[0]) >= 22, ...app, identityValid, node: process.versions.node, nodeSupported: Number(process.versions.node.split(".")[0]) >= 22, state };
+    return { ok: app.appFound && identityValid && Number(process.versions.node.split(".")[0]) >= 22, ...app, identityValid, node: process.versions.node, nodeSupported: Number(process.versions.node.split(".")[0]) >= 22, state: publicState(state) };
   }
   if (command === "list") return (await themes()).map(({ manifest, root }) => ({ id: manifest.id, name: manifest.name, appearance: manifest.appearance, root }));
   if (command === "create") {
@@ -215,14 +247,21 @@ export async function run(argv) {
     if (!options.theme || options.confirm !== "yes") throw new Error("delete requires --theme ID --confirm yes");
     return { ok: true, ...(await deleteUserTheme({ id: options.theme, storeRoot: paths.userThemesRoot, deletedRoot: paths.deletedThemesRoot })) };
   }
-  if (command === "apply" || command === "switch") return apply(command === "switch" ? { ...options, restart: options.restart ?? "no" } : options);
+  if (command === "apply" || command === "switch") return apply(options);
   if (command === "handoff-apply") return runHandoff(options);
   if (command === "pause") return pause(options);
   if (command === "restore") return restore(options);
   if (command === "status" || command === "verify") return status(options);
   if (command === "watch") {
+    const state = await readState();
+    if (!options.generation || state?.watcherGeneration !== options.generation || !validPassport(state?.passport)) {
+      return { stopped: true, reason: "superseded" };
+    }
     const allThemes = await themes();
-    return watchRenderer({ port: port(options.port), themes: allThemes, activeId: null });
+    return watchRenderer({
+      port: port(options.port), themes: allThemes, activeId: null, passport: state.passport,
+      isCurrent: async () => (await readState())?.watcherGeneration === options.generation,
+    });
   }
   throw new Error(`unknown command: ${command}`);
 }
