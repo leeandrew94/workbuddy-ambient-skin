@@ -108,15 +108,32 @@ switch ($Action) {
     $info = Require-WorkBuddy
     $processes = @(Get-ExactProcesses $info.executable)
     if ($processes.Count -eq 0) { Write-Json @{ wasRunning = $false; stopped = $true; forced = $false; pids = @() }; break }
-    $initialPids = @($processes | ForEach-Object { [int]$_.ProcessId })
-    foreach ($processIdToStop in $initialPids) {
-      $verified = @(Get-ExactProcesses $info.executable | Where-Object { [int]$_.ProcessId -eq $processIdToStop })
-      if ($verified.Count -gt 0) { Stop-Process -Id $processIdToStop -Force -ErrorAction Stop }
+    $stoppedPids = [Collections.Generic.HashSet[int]]::new()
+    $deadline = [DateTime]::UtcNow.AddSeconds(8)
+    $emptySince = $null
+    while ([DateTime]::UtcNow -lt $deadline) {
+      $current = @(Get-ExactProcesses $info.executable)
+      if ($current.Count -eq 0) {
+        if ($null -eq $emptySince) { $emptySince = [DateTime]::UtcNow }
+        if (([DateTime]::UtcNow - $emptySince).TotalMilliseconds -ge 500) { break }
+      } else {
+        $emptySince = $null
+        foreach ($record in $current) {
+          $processIdToStop = [int]$record.ProcessId
+          $verified = @(Get-ExactProcesses $info.executable | Where-Object { [int]$_.ProcessId -eq $processIdToStop })
+          if ($verified.Count -gt 0) {
+            Stop-Process -Id $processIdToStop -Force -ErrorAction SilentlyContinue
+            [void]$stoppedPids.Add($processIdToStop)
+          }
+        }
+      }
+      Start-Sleep -Milliseconds 100
     }
-    $remaining = @(Get-ExactProcesses $info.executable | Where-Object { $initialPids -contains [int]$_.ProcessId })
+    $remaining = @(Get-ExactProcesses $info.executable)
     if ($remaining.Count -gt 0) { throw 'Verified WorkBuddy process did not stop after forced restart' }
     Start-Sleep -Milliseconds 2000
-    Write-Json @{ wasRunning = $true; stopped = $true; forced = $true; pids = $initialPids; settledMs = 2000 }
+    if (@(Get-ExactProcesses $info.executable).Count -gt 0) { throw 'WorkBuddy process family restarted before CDP launch' }
+    Write-Json @{ wasRunning = $true; stopped = $true; forced = $true; pids = @($stoppedPids); settledMs = 2000 }
     break
   }
   'launch-cdp' {

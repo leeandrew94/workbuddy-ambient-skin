@@ -4,7 +4,7 @@ import { dirname, join, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
-import { DEFAULT_PORT, PORT_SCAN_LIMIT } from "./constants.mjs";
+import { DEFAULT_PORT } from "./constants.mjs";
 
 const execFile = promisify(execFileCallback);
 const helperPath = join(dirname(fileURLToPath(import.meta.url)), "workbuddy-windows.ps1");
@@ -50,11 +50,8 @@ async function freePort(port) {
 }
 
 export async function selectPort(preferred = DEFAULT_PORT) {
-  for (let offset = 0; offset < PORT_SCAN_LIMIT; offset += 1) {
-    const port = preferred + offset;
-    if (port <= 65535 && await freePort(port)) return port;
-  }
-  throw new Error("no free loopback CDP port was found");
+  if (await freePort(preferred)) return preferred;
+  throw new Error(`CDP port ${preferred} is already in use`);
 }
 
 export async function quitWorkBuddy({ timeoutMs = 15000 } = {}) {

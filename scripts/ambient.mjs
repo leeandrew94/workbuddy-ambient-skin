@@ -18,6 +18,10 @@ import { chooseApplyPath } from "./lib/workflow.mjs";
 const entryPath = fileURLToPath(import.meta.url);
 const paths = studioPaths();
 
+function loopbackEnvironment() {
+  return { ...process.env, NO_PROXY: "127.0.0.1,localhost,::1", no_proxy: "127.0.0.1,localhost,::1" };
+}
+
 function parse(argv) {
   const command = argv[0] || "help";
   const options = {};
@@ -68,7 +72,7 @@ async function stopWatcher(state) {
 
 async function startWatcher(portNumber, generation) {
   const child = spawn(process.execPath, [entryPath, "watch", "--port", String(portNumber), "--generation", generation], {
-    detached: true, stdio: "ignore",
+    detached: true, stdio: "ignore", env: loopbackEnvironment(),
   });
   child.unref();
   return child.pid;
@@ -127,23 +131,13 @@ async function applyDirect(options) {
     await stopWatcher(previous);
     shutdown = await stopForRestart({ restartConfirmed: options.restart, forceQuit: forceQuitWorkBuddy });
     selectedPort = await selectPort(selectedPort);
-    try {
-      launch = await launchWithCdp(selectedPort);
-      targets = await waitForTargets(selectedPort);
-    } catch (error) {
-      await launchNormally().catch(() => {});
-      throw new Error(`${error.message}; WorkBuddy normal launch was requested as fallback`);
-    }
+    launch = await launchWithCdp(selectedPort);
+    targets = await waitForTargets(selectedPort);
     authorization = { ownership: "spawn-capability", passport: await passportForPort(selectedPort) };
   }
   const { ownership, passport } = authorization;
   let result;
-  try {
-    result = await applyToRenderer({ port: selectedPort, themes: allThemes, activeId, passport });
-  } catch (error) {
-    if (launch) await launchNormally().catch(() => {});
-    throw new Error(launch ? `${error.message}; WorkBuddy normal launch was requested as fallback` : error.message);
-  }
+  result = await applyToRenderer({ port: selectedPort, themes: allThemes, activeId, passport });
   await stopWatcher(previous);
   const watcherGeneration = options.watch === "false" ? null : randomUUID();
   const state = {
@@ -171,7 +165,7 @@ async function startHandoff(options) {
   await log.write(`\n[${new Date().toISOString()}] restart worker started: ${activeId}\n`);
   try {
     const child = spawn(process.execPath, [entryPath, ...handoffArguments({ ...options, theme: activeId, port: selectedPort }, reservation.token)], {
-      detached: true, stdio: ["ignore", log.fd, log.fd],
+      detached: true, stdio: ["ignore", log.fd, log.fd], env: loopbackEnvironment(),
     });
     child.unref();
     return { ok: true, handoff: true, status: "pending", themeId: activeId, port: selectedPort, handoffPid: child.pid, resultPath: paths.handoffResultPath, logPath: paths.logPath };
@@ -248,7 +242,7 @@ export async function run(argv) {
   const { command, options } = parse(argv);
   if (command === "help") return {
     version: VERSION,
-    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "apply [--theme ID] --restart confirmed", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed"],
+    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "apply [--theme ID] --restart confirmed", "terminal-apply --theme ID --restart confirmed", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed"],
   };
   if (command === "doctor") {
     const app = await inspectWorkBuddy();
@@ -273,6 +267,7 @@ export async function run(argv) {
     return { ok: true, ...(await deleteUserTheme({ id: options.theme, storeRoot: paths.userThemesRoot, deletedRoot: paths.deletedThemesRoot })) };
   }
   if (command === "apply" || command === "switch") return apply(options);
+  if (command === "terminal-apply") return applyDirect(options);
   if (command === "handoff-apply") return runHandoff(options);
   if (command === "pause") return pause(options);
   if (command === "restore") return restore(options);

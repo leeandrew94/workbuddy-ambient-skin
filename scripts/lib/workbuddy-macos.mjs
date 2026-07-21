@@ -3,7 +3,7 @@ import { access, mkdir, open, readFile } from "node:fs/promises";
 import net from "node:net";
 import { promisify } from "node:util";
 
-import { APP_PATH, BUNDLE_ID, DEFAULT_PORT, PORT_SCAN_LIMIT, studioPaths } from "./constants.mjs";
+import { APP_PATH, BUNDLE_ID, DEFAULT_PORT, studioPaths } from "./constants.mjs";
 
 const execFile = promisify(execFileCallback);
 const executable = `${APP_PATH}/Contents/MacOS/Electron`;
@@ -71,11 +71,8 @@ async function freePort(port) {
 }
 
 export async function selectPort(preferred = DEFAULT_PORT) {
-  for (let offset = 0; offset < PORT_SCAN_LIMIT; offset += 1) {
-    const port = preferred + offset;
-    if (port <= 65535 && await freePort(port)) return port;
-  }
-  throw new Error("no free loopback CDP port was found");
+  if (await freePort(preferred)) return preferred;
+  throw new Error(`CDP port ${preferred} is already in use`);
 }
 
 export async function quitWorkBuddy({ timeoutMs = 15000, isRunning = isWorkBuddyRunning, findPids = bundleWorkBuddyPids } = {}) {
@@ -132,7 +129,7 @@ export async function bundleWorkBuddyPids(run = execFile) {
 
 export const exactWorkBuddyPids = bundleWorkBuddyPids;
 
-export async function forceQuitWorkBuddy({ timeoutMs = 5000, settleMs = 2000, inspect = inspectWorkBuddy, findPids = bundleWorkBuddyPids, signal = process.kill, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
+export async function forceQuitWorkBuddy({ timeoutMs = 8000, settleMs = 2000, inspect = inspectWorkBuddy, findPids = bundleWorkBuddyPids, signal = process.kill, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
   const info = await inspect();
   if (!info.appFound || !info.bundleMatches || info.executable !== executable) {
     throw new Error("official WorkBuddy bundle identity could not be verified; refusing forced restart");
@@ -142,29 +139,32 @@ export async function forceQuitWorkBuddy({ timeoutMs = 5000, settleMs = 2000, in
     await sleep(settleMs);
     return { wasRunning: false, stopped: true, forced: false, pids: [], settledMs: settleMs };
   }
-  for (const pid of initial) {
-    try { signal(pid, "SIGTERM"); } catch (error) { if (error.code !== "ESRCH") throw error; }
-  }
   const deadline = Date.now() + timeoutMs;
-  let remaining = initial;
+  const killed = new Set();
+  let emptySince = null;
   while (Date.now() < deadline) {
-    remaining = (await findPids()).filter((pid) => initial.includes(pid));
-    if (!remaining.length) {
-      await sleep(settleMs);
-      return { wasRunning: true, stopped: true, forced: true, pids: initial, settledMs: settleMs };
+    const current = await findPids();
+    if (!current.length) {
+      emptySince ??= Date.now();
+      if (Date.now() - emptySince >= 500) {
+        await sleep(settleMs);
+        const late = await findPids();
+        if (!late.length) return { wasRunning: true, stopped: true, forced: true, pids: [...killed], settledMs: settleMs };
+      }
+    } else {
+      emptySince = null;
+      for (const pid of current) {
+        // Re-querying the official bundle mappings on every pass also catches helpers
+        // or a replacement instance created while the original process family exits.
+        try { signal(pid, "SIGKILL"); killed.add(pid); }
+        catch (error) { if (error.code !== "ESRCH") throw error; }
+      }
     }
-    await sleep(250);
+    await sleep(100);
   }
-  // Re-query the exact executable mapping immediately before SIGKILL to guard against PID reuse.
-  remaining = (await findPids()).filter((pid) => initial.includes(pid));
-  for (const pid of remaining) {
-    try { signal(pid, "SIGKILL"); } catch (error) { if (error.code !== "ESRCH") throw error; }
-  }
-  await sleep(250);
-  const survivors = (await findPids()).filter((pid) => initial.includes(pid));
+  const survivors = await findPids();
   if (survivors.length) throw new Error(`verified WorkBuddy process did not stop after forced restart: ${survivors.join(", ")}`);
-  await sleep(settleMs);
-  return { wasRunning: true, stopped: true, forced: true, pids: initial, settledMs: settleMs };
+  throw new Error("WorkBuddy process family did not remain stopped long enough to restart safely");
 }
 
 export async function launchWithCdp(port) {
@@ -174,6 +174,8 @@ export async function launchWithCdp(port) {
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.NODE_OPTIONS;
+  env.NO_PROXY = "127.0.0.1,localhost,::1";
+  env.no_proxy = "127.0.0.1,localhost,::1";
   const paths = studioPaths();
   await mkdir(paths.stateRoot, { recursive: true, mode: 0o700 });
   const log = await open(paths.launchLogPath, "a", 0o600);

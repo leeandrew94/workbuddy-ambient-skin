@@ -31,8 +31,8 @@ Execute the entry point yourself by default. Use Terminal as a documented fallba
 7. The worker closes WorkBuddy, launches it once with loopback CDP, signs a new Session Passport, injects the requested skin, and verifies renderer markers plus the theme id. Do not repeat host-process ownership verification after the trusted launch. Run `verify` or `status` only for later diagnostics.
 8. Report the active theme and visual mode. Mention the loopback port or restore command only when useful.
 9. The restart transaction is one-shot: precisely close the verified WorkBuddy process family, wait for resources to settle, launch once with CDP, inject once, and verify once. Never ask for a second confirmation and never rerun `apply` internally.
-10. The injector may reconnect to a refreshed renderer once, but it must never restart WorkBuddy for that retry. If the handoff result is `failed`, never rerun `apply`, restart WorkBuddy, or start another handoff automatically. Report the saved error and stop. The engine requests a normal WorkBuddy launch as a fallback when CDP startup or injection fails.
-11. If the agent environment cannot see the host process, cannot launch the detached handoff, cannot send the precisely targeted signal, or cannot access the installed skill, give the user one exact, quoted Terminal command for the detected platform and theme. Explain why host Terminal is required, include `--restart confirmed` only after the user authorized the complete restart transaction, and ask the user to paste the JSON result. Do not weaken ownership checks or patch in a process-name fallback.
+10. The injector may reconnect to a refreshed renderer once, but it must never restart WorkBuddy for that retry. If the handoff result is `failed`, never rerun `apply`, restart WorkBuddy, or start another handoff automatically. Report the saved error and stop. Never hide a CDP failure by launching WorkBuddy normally.
+11. If the agent environment cannot complete the detached worker, give the user one exact installed `terminal-apply --theme ID --restart confirmed` command. This synchronous host-Terminal path performs the same close, fixed-port CDP launch, injection, and verification without handoff. Ask the user to paste its JSON result.
 
 ## Apply a built-in theme
 
@@ -47,6 +47,18 @@ After restart permission:
 ```bash
 scripts/workbuddy-ambient.sh apply --theme paper-aurora --restart confirmed
 scripts/workbuddy-ambient.sh verify
+```
+
+Host Terminal fallback on macOS:
+
+```bash
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" terminal-apply --theme paper-aurora --restart confirmed
+```
+
+On Windows PowerShell:
+
+```powershell
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" terminal-apply --theme paper-aurora --restart confirmed
 ```
 
 The bundled safe default is `paper-aurora`, a light theme tuned for readable text. `miku-neko-maid` and `doraemon-snow-fortune` are image-based light presets with automatic OKLCH colors. Personal images provide additional visual styles. Do not substitute `switch` for this conversational workflow; `apply` already chooses the authenticated hot path or the safe restart path.
@@ -123,8 +135,8 @@ Treat the operation as successful only when `verify` reports an installed render
 - `fetch failed` means the saved/default CDP port is unavailable; diagnose launch or port state.
 - `status: pending` with `handoff: true` means the restart was safely delegated; wait for WorkBuddy to reopen instead of launching another apply.
 - `the active skin session could not be authenticated` means neither the Session Passport nor the visible process tree proved ownership. Ask for restart permission in chat and execute `apply --restart confirmed` yourself.
-- If the same authentication or handoff failure remains because the agent sandbox cannot reach host state, provide the exact installed entry-point command as the final fallback. Use the real detected path, quote it, and include `--restart confirmed` only after the user authorized a restart.
+- If the agent sandbox cannot complete the restart worker, provide the exact installed `terminal-apply --theme ID --restart confirmed` command. Do not provide a partial CDP command when the synchronous command can also inject and verify.
 - A forced-shutdown error means process identity could not be revalidated or a verified process survived. Report the exact error and do not broaden the kill target.
-- `WorkBuddy normal launch was requested as fallback` means CDP startup or injection failed after the single restart attempt. WorkBuddy was asked to reopen normally; report the error and do not run `apply` again automatically.
+- A CDP startup or injection failure remains visible as the final error; the skill does not replace it with an ordinary WorkBuddy launch. Do not run `apply` again automatically.
 - The macOS launch log is `~/Library/Application Support/WorkBuddyAmbientSkin/workbuddy-launch.log`. Read it when CDP does not appear after restart; do not speculate about injection until this log and port `9223` are checked.
 - `WorkBuddy DOM ... missing markers` means CDP discovery and ownership verification already passed. Diagnose renderer readiness or a WorkBuddy DOM adapter change; do not attribute this error to the single-instance lock or process-query sandbox.
