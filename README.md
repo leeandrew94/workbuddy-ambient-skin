@@ -103,3 +103,7 @@ Ambient Skin 通过仅绑定 `127.0.0.1` 的 Chrome DevTools Protocol 找到 Wor
 - “完整恢复”会重启 WorkBuddy，并关闭用于皮肤会话的 CDP。
 
 开发验证使用 `npm test` 和 `npm run check`。自定义主题格式见 [references/theme-schema.md](references/theme-schema.md)。
+
+## 感谢
+
+本项目参考了 [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) 的换肤设计理念，感谢其提供的创意启发。
