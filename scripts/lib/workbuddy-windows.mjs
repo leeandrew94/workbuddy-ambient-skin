@@ -1,10 +1,7 @@
 import { execFile as execFileCallback } from "node:child_process";
-import net from "node:net";
 import { dirname, join, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-
-import { DEFAULT_PORT } from "./constants.mjs";
 
 const execFile = promisify(execFileCallback);
 const helperPath = join(dirname(fileURLToPath(import.meta.url)), "workbuddy-windows.ps1");
@@ -38,26 +35,6 @@ async function runPowerShell(action, values = []) {
 }
 
 export async function inspectWorkBuddy() { return runPowerShell("inspect"); }
-export async function isWorkBuddyRunning() { return Boolean(await runPowerShell("is-running")); }
-
-async function freePort(port) {
-  return new Promise((resolve) => {
-    const server = net.createServer();
-    server.unref();
-    server.once("error", () => resolve(false));
-    server.listen({ host: "127.0.0.1", port }, () => server.close(() => resolve(true)));
-  });
-}
-
-export async function selectPort(preferred = DEFAULT_PORT) {
-  if (await freePort(preferred)) return preferred;
-  throw new Error(`CDP port ${preferred} is already in use`);
-}
-
-export async function quitWorkBuddy({ timeoutMs = 15000 } = {}) {
-  return runPowerShell("quit", ["-TimeoutMs", timeoutMs]);
-}
-
 export async function forceQuitWorkBuddy() { return runPowerShell("force-quit"); }
 
 export async function launchWithCdp(port) {
@@ -65,12 +42,3 @@ export async function launchWithCdp(port) {
 }
 
 export async function launchNormally() { await runPowerShell("launch-normal"); }
-
-export async function processCommand(pid) {
-  if (!Number.isInteger(pid) || pid < 1) return "";
-  return runPowerShell("process-command", ["-ProcessId", pid]);
-}
-
-export async function verifiedCdpOwner(port) {
-  return Boolean(await runPowerShell("verify-owner", ["-Port", port]));
-}

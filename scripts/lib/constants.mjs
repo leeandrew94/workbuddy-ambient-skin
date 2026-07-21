@@ -3,7 +3,7 @@ import { dirname, join, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const PRODUCT_ID = "workbuddy-ambient-skin";
-export const VERSION = "0.15.0";
+export const VERSION = "1.0.0";
 export const BUNDLE_ID = "com.workbuddy.workbuddy";
 export const APP_PATH = "/Applications/WorkBuddy.app";
 export const DEFAULT_PORT = 9347;
@@ -30,7 +30,6 @@ export function studioPaths(home = homedir(), platform = process.platform, local
     deletedThemesRoot: pathJoin(stateRoot, "deleted-themes"),
     logPath: pathJoin(stateRoot, "ambient.log"),
     launchLogPath: pathJoin(stateRoot, "workbuddy-launch.log"),
-    handoffLockPath: pathJoin(stateRoot, "handoff.lock.json"),
-    handoffResultPath: pathJoin(stateRoot, "handoff-result.json"),
+    resultPath: pathJoin(stateRoot, "apply-result.json"),
   };
 }

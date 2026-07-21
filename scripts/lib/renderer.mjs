@@ -1,21 +1,16 @@
 import { HOST_ID, STATE_KEY, STYLE_ID, VERSION } from "./constants.mjs";
 
-export function buildInstallExpression({ css, themes, activeId, force = true, sessionId = null, sessionSecret = null }) {
-  const payload = JSON.stringify({ css, themes, activeId, force, sessionId, sessionSecret, STYLE_ID, HOST_ID, STATE_KEY, VERSION });
+export function buildInstallExpression({ css, themes, activeId, force = true }) {
+  const payload = JSON.stringify({ css, themes, activeId, force, STYLE_ID, HOST_ID, STATE_KEY, VERSION });
   return `(${installInRenderer.toString()})(${payload})`;
 }
 
 export function buildRemoveExpression() {
-  return `(() => { const state = window[${JSON.stringify(STATE_KEY)}]; if (state?.cleanup) state.cleanup(true); return true; })()`;
+  return `(() => { const state = window[${JSON.stringify(STATE_KEY)}]; if (state?.cleanup) state.cleanup(); return true; })()`;
 }
 
 export function buildStatusExpression() {
-  return `(() => { const s = window[${JSON.stringify(STATE_KEY)}]; if (!s) return { installed: false, pass: false }; const mode = document.documentElement.dataset.wbasMode; const checks = { application: document.body?.getAttribute?.("data-application-name") === "workbuddy", root: Boolean(document.querySelector("#root")), sidebar: Boolean(document.querySelector('[data-view-id="sidebar"]')), main: Boolean(document.querySelector('[data-view-id="main-content"]')), menu: Boolean(document.getElementById(${JSON.stringify(HOST_ID)})), passport: typeof s.prove === "function", mode: ["home", "work", "detail"].includes(mode), horizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 }; return { installed: true, pass: Object.values(checks).every(Boolean), version: s.version, themeId: s.themeId, sessionId: s.sessionId || null, mode, checks }; })()`;
-}
-
-export function buildPassportProofExpression(nonce) {
-  if (!/^[a-f0-9]{48}$/.test(nonce || "")) throw new Error("invalid session challenge nonce");
-  return `(async () => { const s = window[${JSON.stringify(STATE_KEY)}]; const markers = { application: document.body?.getAttribute?.("data-application-name") === "workbuddy", root: Boolean(document.querySelector("#root")), shell: Boolean(document.querySelector(".teams-container")) }; if (!s || typeof s.prove !== "function" || !Object.values(markers).every(Boolean)) return { pass: false, markers }; const proof = await s.prove(${JSON.stringify(nonce)}); return { pass: typeof proof === "string", proof, sessionId: s.sessionId || null, markers }; })()`;
+  return `(() => { const s = window[${JSON.stringify(STATE_KEY)}]; if (!s) return { installed: false, pass: false }; const mode = document.documentElement.dataset.wbasMode; const checks = { application: document.body?.getAttribute?.("data-application-name") === "workbuddy", root: Boolean(document.querySelector("#root")), sidebar: Boolean(document.querySelector('[data-view-id="sidebar"]')), main: Boolean(document.querySelector('[data-view-id="main-content"]')), menu: Boolean(document.getElementById(${JSON.stringify(HOST_ID)})), mode: ["home", "work", "detail"].includes(mode), horizontalOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1 }; return { installed: true, pass: Object.values(checks).every(Boolean), version: s.version, themeId: s.themeId, mode, checks }; })()`;
 }
 
 async function installInRenderer(data) {
@@ -427,23 +422,13 @@ async function installInRenderer(data) {
   const state = {
     version: data.VERSION,
     themeId: null,
-    sessionId: data.sessionId,
-    async prove(nonce) {
-      if (!/^[a-f0-9]{64}$/.test(data.sessionSecret || "") || !/^[a-f0-9]{48}$/.test(nonce || "") || !globalThis.crypto?.subtle) return null;
-      const secret = Uint8Array.from(data.sessionSecret.match(/.{2}/g), (pair) => Number.parseInt(pair, 16));
-      const key = await globalThis.crypto.subtle.importKey("raw", secret, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-      const signature = await globalThis.crypto.subtle.sign("HMAC", key, new TextEncoder().encode(nonce));
-      return Array.from(new Uint8Array(signature), (value) => value.toString(16).padStart(2, "0")).join("");
-    },
-    cleanup(preservePassport = false) {
+    cleanup() {
       if (disposed) return;
       disposed = true; clearTimeout(timer); observer.disconnect(); window.removeEventListener("resize", scheduleMode);
       style.remove(); host.remove(); html.classList.remove("workbuddy-ambient-skin");
       delete html.dataset.wbasAppearance; delete html.dataset.wbasSafe; delete html.dataset.wbasTheme; delete html.dataset.wbasMode; delete html.dataset.wbasMaterial;
       for (const name of rootVariables) html.style.removeProperty(name);
-      if (preservePassport) {
-        window[data.STATE_KEY] = { version: state.version, themeId: null, sessionId: state.sessionId, prove: state.prove, paused: true, cleanup: (keepPassport = false) => { if (!keepPassport) delete window[data.STATE_KEY]; } };
-      } else delete window[data.STATE_KEY];
+      delete window[data.STATE_KEY];
     },
   };
   window[data.STATE_KEY] = state;
