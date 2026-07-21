@@ -42,7 +42,7 @@ scripts/workbuddy-ambient.sh apply --theme paper-aurora --restart confirmed
 scripts/workbuddy-ambient.sh verify
 ```
 
-The bundled safe default is `paper-aurora`, a light theme tuned for readable text. `miku-neko-maid` is an image-based light preset with automatic OKLCH colors. Personal images provide additional visual styles.
+The bundled safe default is `paper-aurora`, a light theme tuned for readable text. `miku-neko-maid` and `doraemon-snow-fortune` are image-based light presets with automatic OKLCH colors. Personal images provide additional visual styles.
 
 ## Create a theme from an image
 
