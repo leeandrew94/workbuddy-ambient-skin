@@ -1,6 +1,6 @@
 ---
 name: workbuddy-ambient-skin
-description: Apply, create, switch, verify, pause, or restore reversible ambient skins for the WorkBuddy desktop app through loopback CDP injection. Use when users want to change WorkBuddy's theme, wallpaper, colors, or visual atmosphere; apply a personal PNG, JPEG, or WebP image; create or switch a WorkBuddy skin; troubleshoot a missing skin; or restore the original WorkBuddy appearance.
+description: Apply, create, switch, verify, pause, or restore reversible ambient skins for the WorkBuddy desktop app on macOS or Windows through loopback CDP injection. Use when users want to change WorkBuddy's theme, wallpaper, colors, or visual atmosphere; apply a personal PNG, JPEG, or WebP image; create or switch a WorkBuddy skin; troubleshoot a missing skin; or restore the original WorkBuddy appearance.
 ---
 
 # WorkBuddy Ambient Skin
@@ -9,18 +9,20 @@ Give WorkBuddy a route-aware ambient background and lightweight Material Layer w
 
 ## Entry point
 
-Run all operations through:
+Choose the entry point for the current operating system and run all operations through it:
 
 ```bash
 scripts/workbuddy-ambient.sh <command> [options]
+# Windows PowerShell
+scripts\workbuddy-ambient.ps1 <command> [options]
 ```
 
 Read JSON output and report the concrete result. Do not reconstruct CDP commands manually.
 
 ## Workflow
 
-1. Run `scripts/workbuddy-ambient.sh doctor`.
-2. Stop if WorkBuddy is missing, the bundle id differs from `com.workbuddy.workbuddy`, or the runtime is unsupported.
+1. Run `scripts/workbuddy-ambient.sh doctor` on macOS or `scripts\workbuddy-ambient.ps1 doctor` on Windows.
+2. Stop if WorkBuddy is missing, the macOS bundle id or Windows executable identity is invalid, or the runtime is unsupported.
 3. Choose a theme with `list`, or create one from the user's image.
 4. If applying requires a restart, tell the user to save unsaved WorkBuddy work and obtain explicit permission.
 5. Apply the skin. When no verified CDP session exists, `apply` starts a detached graceful handoff and returns `status: pending`; do not start a second apply.
@@ -93,6 +95,8 @@ scripts/workbuddy-ambient.sh restore --restart confirmed
 - Bind CDP only to `127.0.0.1`; warn users not to run untrusted local software while it is active.
 - Require explicit permission before closing or restarting WorkBuddy.
 - Never force-kill WorkBuddy. If it does not quit cleanly, stop and report the failure.
+- On Windows, accept only a resolved `WorkBuddy.exe` from an explicit override, known install location, or WorkBuddy uninstall registry entry, and require a valid signature or matching product identity.
+- On Windows, serialize public operations with the per-user named mutex and verify CDP ownership through the exact executable process tree.
 - Let the built-in graceful handoff survive the host restart. Do not wrap `apply` in another `nohup`, `pkill`, or custom restart script.
 - Accept only the exact WorkBuddy renderer URL shape and native DOM markers.
 - Stop a watcher only when its PID command matches this skill's exact entry point and `watch` command.

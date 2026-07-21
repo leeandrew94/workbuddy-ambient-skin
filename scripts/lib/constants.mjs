@@ -1,9 +1,9 @@
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const PRODUCT_ID = "workbuddy-ambient-skin";
-export const VERSION = "0.7.0";
+export const VERSION = "0.8.0";
 export const BUNDLE_ID = "com.workbuddy.workbuddy";
 export const APP_PATH = "/Applications/WorkBuddy.app";
 export const DEFAULT_PORT = 9347;
@@ -19,15 +19,18 @@ export const skillRoot = resolve(libDir, "../..");
 export const assetsRoot = join(skillRoot, "assets");
 export const bundledThemesRoot = join(assetsRoot, "themes");
 
-export function studioPaths(home = homedir()) {
-  const stateRoot = join(home, "Library", "Application Support", "WorkBuddyAmbientSkin");
+export function studioPaths(home = homedir(), platform = process.platform, localAppData = process.env.LOCALAPPDATA) {
+  const pathJoin = platform === "win32" ? win32.join : join;
+  const stateRoot = platform === "win32"
+    ? pathJoin(localAppData || pathJoin(home, "AppData", "Local"), "WorkBuddyAmbientSkin")
+    : join(home, "Library", "Application Support", "WorkBuddyAmbientSkin");
   return {
     stateRoot,
-    statePath: join(stateRoot, "state.json"),
-    userThemesRoot: join(stateRoot, "themes"),
-    deletedThemesRoot: join(stateRoot, "deleted-themes"),
-    logPath: join(stateRoot, "ambient.log"),
-    handoffLockPath: join(stateRoot, "handoff.lock.json"),
-    handoffResultPath: join(stateRoot, "handoff-result.json"),
+    statePath: pathJoin(stateRoot, "state.json"),
+    userThemesRoot: pathJoin(stateRoot, "themes"),
+    deletedThemesRoot: pathJoin(stateRoot, "deleted-themes"),
+    logPath: pathJoin(stateRoot, "ambient.log"),
+    handoffLockPath: pathJoin(stateRoot, "handoff.lock.json"),
+    handoffResultPath: pathJoin(stateRoot, "handoff-result.json"),
   };
 }

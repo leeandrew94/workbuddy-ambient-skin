@@ -72,7 +72,7 @@ async function startWatcher(portNumber) {
 async function validateTheme(options) {
   const allThemes = await themes();
   if (!allThemes.length) throw new Error("no valid themes were found");
-  const activeId = options.theme || "paper-aurora";
+  const activeId = options.theme || (await readState())?.themeId || "paper-aurora";
   if (!allThemes.some((theme) => theme.manifest.id === activeId)) throw new Error(`theme not found: ${activeId}`);
   return { allThemes, activeId };
 }
@@ -105,7 +105,8 @@ async function applyDirect(options) {
     schemaVersion: 1, version: VERSION, status: "active", port: selectedPort,
     themeId: activeId, appPid: launch?.pid ?? null, watcherPid,
     ownership,
-    executable: launch?.executable ?? "/Applications/WorkBuddy.app/Contents/MacOS/Electron",
+    executable: launch?.executable ?? previous?.executable ?? null,
+    platform: process.platform,
     updatedAt: new Date().toISOString(),
   };
   await writeState(state);
@@ -190,12 +191,13 @@ export async function run(argv) {
   const { command, options } = parse(argv);
   if (command === "help") return {
     version: VERSION,
-    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "apply --theme ID --restart confirmed", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed"],
+    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "apply [--theme ID] --restart confirmed", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed"],
   };
   if (command === "doctor") {
     const app = await inspectWorkBuddy();
     const state = await readState();
-    return { ok: app.appFound && app.bundleMatches && Number(process.versions.node.split(".")[0]) >= 22, ...app, node: process.versions.node, nodeSupported: Number(process.versions.node.split(".")[0]) >= 22, state };
+    const identityValid = app.identityValid ?? app.bundleMatches;
+    return { ok: app.appFound && identityValid && Number(process.versions.node.split(".")[0]) >= 22, ...app, identityValid, node: process.versions.node, nodeSupported: Number(process.versions.node.split(".")[0]) >= 22, state };
   }
   if (command === "list") return (await themes()).map(({ manifest, root }) => ({ id: manifest.id, name: manifest.name, appearance: manifest.appearance, root }));
   if (command === "create") {
