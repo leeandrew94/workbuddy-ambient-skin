@@ -1,4 +1,0 @@
-interface:
-  display_name: "WorkBuddy Ambient Skin"
-  short_description: "一键创建、切换并安全恢复 WorkBuddy 氛围皮肤"
-  default_prompt: "Use $workbuddy-ambient-skin to apply a readable ambient skin to my WorkBuddy app."
