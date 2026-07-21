@@ -194,7 +194,7 @@ scripts/workbuddy-ambient.sh apply --theme miku-neko-maid --restart confirmed --
 .\scripts\workbuddy-ambient.ps1 apply --theme miku-neko-maid --restart confirmed --force-restart confirmed
 ```
 
-这个选项仍会先尝试正常退出，只有超时后才强制关闭。它可能丢失未保存内容，因此不会自动启用，也不能用一次普通重启确认代替。macOS 只结束映射到官方应用包完整主程序路径的 WorkBuddy 进程；Windows 会再次校验安装身份、完整可执行路径和主进程记录，不会按 `Electron` 或 `WorkBuddy` 名称批量结束其他应用。强制关闭后会等待会话资源释放，再通过系统应用启动服务重开；若第一次没有产生 CDP 渲染器，会精准清理这次失败启动并自动重试一次。
+这个选项仍会先尝试正常退出，只有超时后才强制关闭。它可能丢失未保存内容，因此不会自动启用，也不能用一次普通重启确认代替。macOS 只结束映射到官方应用包完整主程序路径的 WorkBuddy 进程；Windows 会再次校验安装身份、完整可执行路径和主进程记录，不会按 `Electron` 或 `WorkBuddy` 名称批量结束其他应用。强制关闭后等待会话资源释放，再以 CDP 模式启动一次。若启动或注入失败，流程不会再次强杀或循环重启，只请求系统正常打开 WorkBuddy 作为兜底。
 
 ## 感谢
 

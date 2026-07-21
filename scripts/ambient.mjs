@@ -9,7 +9,6 @@ import { bundledThemesRoot, DEFAULT_PORT, studioPaths, VERSION } from "./lib/con
 import { fetchBrowserIdentity, fetchTargets, waitForTargets } from "./lib/cdp.mjs";
 import { finishHandoff, handoffArguments, readHandoffResult, reserveHandoff, validateHandoff } from "./lib/handoff.mjs";
 import { applyToRenderer, removeFromRenderer, rendererStatus, verifyRendererPassport, watchRenderer } from "./lib/injector.mjs";
-import { launchCdpSession } from "./lib/launch-session.mjs";
 import { createPassport, publicState, validPassport } from "./lib/session.mjs";
 import { stopForRestart } from "./lib/restart.mjs";
 import { createTheme, deleteUserTheme, listThemes, renameUserTheme } from "./lib/theme.mjs";
@@ -123,24 +122,23 @@ async function applyDirect(options) {
     await stopWatcher(previous);
     shutdown = await stopForRestart({ forceRestart: options["force-restart"], quit: quitWorkBuddy, forceQuit: forceQuitWorkBuddy });
     selectedPort = await selectPort(selectedPort);
-    const session = await launchCdpSession({
-      port: selectedPort,
-      forced: shutdown.forceRestarted,
-      launch: launchWithCdp,
-      wait: waitForTargets,
-      recover: forceQuitWorkBuddy,
-      selectPort,
-    });
-    selectedPort = session.port;
-    launch = session.launch;
-    targets = session.targets;
-    if (session.launchRecovered) {
-      shutdown = { ...shutdown, launchRecovered: true, firstLaunchError: session.firstLaunchError, recovery: session.recovery };
+    try {
+      launch = await launchWithCdp(selectedPort);
+      targets = await waitForTargets(selectedPort);
+    } catch (error) {
+      await launchNormally().catch(() => {});
+      throw new Error(`${error.message}; WorkBuddy normal launch was requested as fallback`);
     }
     authorization = { ownership: "spawn-capability", passport: await passportForPort(selectedPort) };
   }
   const { ownership, passport } = authorization;
-  const result = await applyToRenderer({ port: selectedPort, themes: allThemes, activeId, passport });
+  let result;
+  try {
+    result = await applyToRenderer({ port: selectedPort, themes: allThemes, activeId, passport });
+  } catch (error) {
+    if (launch) await launchNormally().catch(() => {});
+    throw new Error(launch ? `${error.message}; WorkBuddy normal launch was requested as fallback` : error.message);
+  }
   await stopWatcher(previous);
   const watcherGeneration = options.watch === "false" ? null : randomUUID();
   const state = {
@@ -197,9 +195,7 @@ async function runHandoff(options) {
       status: "complete", ok: true, themeId: applied.themeId, port: applied.port,
       mode: verification.renderers[0]?.mode ?? null,
       forceRestarted: applied.forceRestarted ?? false,
-      launchRecovered: applied.launchRecovered ?? false,
       ...(applied.gracefulError ? { gracefulError: applied.gracefulError } : {}),
-      ...(applied.firstLaunchError ? { firstLaunchError: applied.firstLaunchError } : {}),
     });
     return { ok: true, handoff: true, ...result };
   } catch (error) {

@@ -13,11 +13,22 @@ function entries(themes) {
 export async function applyToRenderer({ port, themes, activeId, passport }) {
   if (!validPassport(passport)) throw new Error("a valid session passport is required for renderer injection");
   const css = await readFile(join(assetsRoot, "ambient.css"), "utf8");
-  const targets = await waitForTargets(port);
-  const values = await evaluateAll(targets, port, buildInstallExpression({
+  const expression = buildInstallExpression({
     css, themes: entries(themes), activeId, sessionId: passport.browserId, sessionSecret: passport.secret,
-  }), undefined, 35000);
-  return { applied: values.length, themeId: activeId, values, targetIds: targets.map((target) => target.id) };
+  });
+  let targets = await waitForTargets(port);
+  let values;
+  let reconnected = false;
+  try {
+    values = await evaluateAll(targets, port, expression, undefined, 35000);
+  } catch (error) {
+    if (!/CDP WebSocket (closed|connection failed)/.test(error.message)) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    targets = await waitForTargets(port);
+    values = await evaluateAll(targets, port, expression, undefined, 35000);
+    reconnected = true;
+  }
+  return { applied: values.length, themeId: activeId, values, targetIds: targets.map((target) => target.id), reconnected };
 }
 
 export async function verifyRendererPassport({ port, passport, deps = {} }) {

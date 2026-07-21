@@ -146,25 +146,20 @@ export async function forceQuitWorkBuddy({ timeoutMs = 5000, settleMs = 2000, in
   return { wasRunning: true, stopped: true, forced: true, pids: initial, settledMs: settleMs };
 }
 
-export async function launchWithCdp(port, { strategy = "direct" } = {}) {
+export async function launchWithCdp(port) {
   const info = await inspectWorkBuddy();
   if (!info.appFound || !info.bundleMatches) throw new Error("official WorkBuddy bundle was not found at /Applications/WorkBuddy.app");
   const args = [`--remote-debugging-address=127.0.0.1`, `--remote-debugging-port=${port}`];
-  if (strategy === "launch-services") {
-    await execFile("/usr/bin/open", ["-n", APP_PATH, "--args", ...args]);
-    return { pid: null, port, executable, strategy };
-  }
-  if (strategy !== "direct") throw new Error(`unsupported WorkBuddy launch strategy: ${strategy}`);
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.NODE_OPTIONS;
   const child = spawn(executable, args, { detached: true, stdio: "ignore", env });
   child.unref();
-  return { pid: child.pid, port, executable, strategy };
+  return { pid: child.pid, port, executable };
 }
 
 export async function launchNormally() {
-  await execFile("/usr/bin/open", ["-a", APP_PATH]);
+  await execFile("/usr/bin/open", [APP_PATH]);
 }
 
 export async function processCommand(pid) {
