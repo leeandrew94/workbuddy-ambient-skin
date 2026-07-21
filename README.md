@@ -176,25 +176,25 @@ Ambient Skin 通过仅绑定 `127.0.0.1` 的 Chrome DevTools Protocol 找到 Wor
 - 支持 macOS 13+ 与 Windows 10/11，两端均需 Node.js 22+；
 - Windows 会校验 `WorkBuddy.exe` 路径、产品身份、CDP 端口和进程树，同一用户的操作由命名互斥锁串行化；
 - 监听端口的进程名不能作为信任依据；只接受可信启动、官方进程树或有效 Session Passport；
-- 两端默认只尝试正常退出；仅在正常退出失败、用户再次明确确认后，才会精准结束经过完整路径和应用身份复核的 WorkBuddy 主进程；
+- 两端只需一次重启确认：先尝试正常退出，若超时则精准结束经过完整路径和应用身份复核的 WorkBuddy 进程族；
 - WorkBuddy 若调整关键 DOM 或 `--cb-*` 变量，适配层可能需要更新；
 - “完整恢复”会重启 WorkBuddy，并关闭用于皮肤会话的 CDP。
 
 开发验证使用 `npm test` 和 `npm run check`。自定义主题格式见 [references/theme-schema.md](references/theme-schema.md)。
 
-## 正常退出被阻塞时
+## 一次确认的重启流程
 
-如果 WorkBuddy 被保存提示、更新窗口或阻塞式对话框卡住，普通重启会停止并报告 `did not quit cleanly`。确认没有需要保留的输入后，可以显式启用强制重启兜底：
+确认前请先保存 WorkBuddy 中的输入。一次 `--restart confirmed` 会授权一个完整且有界的重启事务：先正常退出；如果被保存提示、更新窗口或阻塞式对话框卡住，超时后自动精准结束 WorkBuddy 进程族；然后只启动一次、注入一次并校验一次。
 
 ```bash
-scripts/workbuddy-ambient.sh apply --theme miku-neko-maid --restart confirmed --force-restart confirmed
+scripts/workbuddy-ambient.sh apply --theme miku-neko-maid --restart confirmed
 ```
 
 ```powershell
-.\scripts\workbuddy-ambient.ps1 apply --theme miku-neko-maid --restart confirmed --force-restart confirmed
+.\scripts\workbuddy-ambient.ps1 apply --theme miku-neko-maid --restart confirmed
 ```
 
-这个选项仍会先尝试正常退出，只有超时后才强制关闭。它可能丢失未保存内容，因此不会自动启用，也不能用一次普通重启确认代替。macOS 只结束首个可执行映射位于官方 `WorkBuddy.app` 包内的进程族；Windows 会再次校验安装身份和完整可执行路径后结束该安装的进程族，不会按 `Electron` 或 `WorkBuddy` 名称误伤其他应用。强制关闭后等待会话资源释放，再以 CDP 模式启动一次。若启动或注入失败，流程不会再次强杀或循环重启，只请求系统正常打开 WorkBuddy 作为兜底。
+强制关闭可能丢失未保存内容，所以脚本仍不会在没有 `--restart confirmed` 时关闭应用。macOS 只结束首个可执行映射位于官方 `WorkBuddy.app` 包内的进程族；Windows 会再次校验安装身份和完整可执行路径后结束该安装的进程族，不会按 `Electron` 或 `WorkBuddy` 名称误伤其他应用。强制关闭后等待会话资源释放，再以 CDP 模式启动一次。若启动或注入失败，流程不会再次强杀或循环重启，只请求系统正常打开 WorkBuddy 作为兜底。旧版命令中的 `--force-restart confirmed` 仍可被解析，但已不再需要。
 
 ## 感谢
 

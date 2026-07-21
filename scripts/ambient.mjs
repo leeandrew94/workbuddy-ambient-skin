@@ -125,7 +125,7 @@ async function applyDirect(options) {
       throw new Error("the active skin session is not authenticated; use the graceful handoff to replace it");
     }
     await stopWatcher(previous);
-    shutdown = await stopForRestart({ forceRestart: options["force-restart"], quit: quitWorkBuddy, forceQuit: forceQuitWorkBuddy });
+    shutdown = await stopForRestart({ restartConfirmed: options.restart, quit: quitWorkBuddy, forceQuit: forceQuitWorkBuddy });
     selectedPort = await selectPort(selectedPort);
     try {
       launch = await launchWithCdp(selectedPort);
@@ -193,7 +193,7 @@ async function runHandoff(options) {
   const token = options["handoff-token"];
   const reservation = await validateHandoff(paths, token);
   try {
-    const applied = await applyDirect({ theme: reservation.themeId, port: String(reservation.port), watch: reservation.watch ? "true" : "false", restart: "confirmed", "force-restart": options["force-restart"], "replace-session": "confirmed" });
+    const applied = await applyDirect({ theme: reservation.themeId, port: String(reservation.port), watch: reservation.watch ? "true" : "false", restart: "confirmed", "replace-session": "confirmed" });
     const renderers = await rendererStatus(applied.port);
     const verified = renderers.length > 0 && renderers.every((renderer) => renderer.pass && renderer.themeId === reservation.themeId);
     if (!verified) throw new Error(`skin injection verification failed for theme ${reservation.themeId}`);
@@ -224,7 +224,7 @@ async function pause(options) {
 async function restore(options) {
   if (options.restart !== "confirmed") throw new Error("restore closes and reopens WorkBuddy; rerun with --restart confirmed");
   const paused = await pause(options);
-  const shutdown = await stopForRestart({ forceRestart: options["force-restart"], quit: quitWorkBuddy, forceQuit: forceQuitWorkBuddy });
+  const shutdown = await stopForRestart({ restartConfirmed: options.restart, quit: quitWorkBuddy, forceQuit: forceQuitWorkBuddy });
   await launchNormally();
   await writeState({ schemaVersion: 2, version: VERSION, status: "restored", watcherPid: null, watcherGeneration: null, updatedAt: new Date().toISOString() });
   return { ok: true, restored: true, paused, ...shutdown };
@@ -249,7 +249,7 @@ export async function run(argv) {
   const { command, options } = parse(argv);
   if (command === "help") return {
     version: VERSION,
-    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "apply [--theme ID] --restart confirmed [--force-restart confirmed]", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed [--force-restart confirmed]"],
+    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "apply [--theme ID] --restart confirmed", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed"],
   };
   if (command === "doctor") {
     const app = await inspectWorkBuddy();
