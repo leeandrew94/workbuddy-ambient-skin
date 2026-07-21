@@ -138,5 +138,5 @@ Treat the operation as successful only when `verify` reports an installed render
 - If the agent sandbox cannot complete the restart worker, provide the exact installed `terminal-apply --theme ID --restart confirmed` command. Do not provide a partial CDP command when the synchronous command can also inject and verify.
 - A forced-shutdown error means process identity could not be revalidated or a verified process survived. Report the exact error and do not broaden the kill target.
 - A CDP startup or injection failure remains visible as the final error; the skill does not replace it with an ordinary WorkBuddy launch. Do not run `apply` again automatically.
-- The macOS launch log is `~/Library/Application Support/WorkBuddyAmbientSkin/workbuddy-launch.log`. Read it when CDP does not appear after restart; do not speculate about injection until this log and port `9223` are checked.
+- The macOS launch log is `~/Library/Application Support/WorkBuddyAmbientSkin/workbuddy-launch.log`. Read it when CDP does not appear after restart; do not speculate about injection until this log and the fixed port `9347` are checked.
 - `WorkBuddy DOM ... missing markers` means CDP discovery and ownership verification already passed. Diagnose renderer readiness or a WorkBuddy DOM adapter change; do not attribute this error to the single-instance lock or process-query sandbox.

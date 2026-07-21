@@ -105,8 +105,9 @@ async function validateTheme(options) {
 }
 
 function restartPort(options, state) {
-  if (options.port != null) return port(options.port);
-  return state?.status === "active" || state?.status === "paused" ? port(state.port) : DEFAULT_PORT;
+  const selected = options.port == null ? DEFAULT_PORT : port(options.port);
+  if (selected !== DEFAULT_PORT) throw new Error(`WorkBuddy Ambient Skin uses fixed CDP port ${DEFAULT_PORT}`);
+  return selected;
 }
 
 async function applyDirect(options) {

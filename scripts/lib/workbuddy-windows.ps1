@@ -3,7 +3,7 @@ param(
   [Parameter(Mandatory = $true)]
   [ValidateSet('inspect', 'is-running', 'quit', 'force-quit', 'launch-cdp', 'launch-normal', 'process-command', 'verify-owner')]
   [string]$Action,
-  [int]$Port = 9223,
+  [int]$Port = 9347,
   [int]$TimeoutMs = 15000,
   [int]$ProcessId = 0
 )

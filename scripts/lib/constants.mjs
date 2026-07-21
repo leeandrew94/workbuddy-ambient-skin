@@ -3,10 +3,10 @@ import { dirname, join, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const PRODUCT_ID = "workbuddy-ambient-skin";
-export const VERSION = "0.14.0";
+export const VERSION = "0.14.1";
 export const BUNDLE_ID = "com.workbuddy.workbuddy";
 export const APP_PATH = "/Applications/WorkBuddy.app";
-export const DEFAULT_PORT = 9223;
+export const DEFAULT_PORT = 9347;
 export const RENDERER_SUFFIX = "/app.asar/renderer/index.html";
 export const STYLE_ID = "workbuddy-ambient-skin-style";
 export const HOST_ID = "workbuddy-ambient-skin-host";
