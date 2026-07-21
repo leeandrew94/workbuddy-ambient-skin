@@ -1,0 +1,216 @@
+:root.workbuddy-ambient-skin {
+  --wbas-accent: #78a7ff;
+  --wbas-secondary: #a78bfa;
+  --wbas-surface: #11151f;
+  --wbas-text: #f2f5fa;
+  --wbas-focus-x: 50%;
+  --wbas-focus-y: 50%;
+  --wbas-home-opacity: 1;
+  --wbas-work-opacity: .16;
+  --wbas-detail-opacity: .08;
+  --wbas-sidebar-opacity: .88;
+  --wbas-panel-opacity: 90%;
+  --wbas-card-opacity: 90%;
+  --wbas-material-blur: 18px;
+  --wbas-material-radius: 12px;
+  --wbas-border-strength: 14%;
+  --wbas-shadow-strength: .1;
+  --wbas-current-opacity: var(--wbas-home-opacity);
+  color-scheme: dark;
+}
+
+:root.workbuddy-ambient-skin[data-wbas-appearance="light"] { color-scheme: light; }
+:root.workbuddy-ambient-skin[data-wbas-mode="work"] { --wbas-current-opacity: var(--wbas-work-opacity); }
+:root.workbuddy-ambient-skin[data-wbas-mode="detail"] { --wbas-current-opacity: var(--wbas-detail-opacity); }
+
+:root.workbuddy-ambient-skin body[data-application-name="workbuddy"] {
+  --cb-bg-primary: var(--wbas-surface) !important;
+  --cb-bg-secondary: color-mix(in srgb, var(--wbas-surface) 94%, transparent) !important;
+  --cb-panel-bg-primary: color-mix(in srgb, var(--wbas-surface) 91%, transparent) !important;
+  --cb-bg-card: color-mix(in srgb, var(--wbas-surface) var(--wbas-card-opacity), transparent) !important;
+  --cb-card-background: color-mix(in srgb, var(--wbas-surface) var(--wbas-card-opacity), transparent) !important;
+  --card-bg: color-mix(in srgb, var(--wbas-surface) var(--wbas-card-opacity), transparent) !important;
+  --card-background-color: color-mix(in srgb, var(--wbas-surface) var(--wbas-card-opacity), transparent) !important;
+  --card-border: color-mix(in srgb, var(--wbas-text) 9%, transparent) !important;
+  --card-border-radius: var(--wbas-material-radius) !important;
+  --cb-input-area-container-secondary: color-mix(in srgb, var(--wbas-surface) var(--wbas-panel-opacity), transparent) !important;
+  --cb-question-floating-card-bg: color-mix(in srgb, var(--wbas-surface) var(--wbas-card-opacity), transparent) !important;
+  --cb-question-floating-card-border: color-mix(in srgb, var(--wbas-text) 9%, transparent) !important;
+  --cb-settings-card-background: color-mix(in srgb, var(--wbas-surface) var(--wbas-card-opacity), transparent) !important;
+  --cb-settings-card-border: color-mix(in srgb, var(--wbas-text) 9%, transparent) !important;
+  --cb-input-border: color-mix(in srgb, var(--wbas-text) 10%, transparent) !important;
+  --cb-input-border-color: color-mix(in srgb, var(--wbas-text) 10%, transparent) !important;
+  --cb-input-border-primary: color-mix(in srgb, var(--wbas-text) 10%, transparent) !important;
+  --cb-input-content-border: color-mix(in srgb, var(--wbas-text) 9%, transparent) !important;
+  --cb-input-active-border: color-mix(in srgb, var(--wbas-accent) 42%, transparent) !important;
+  --cb-input-focus-border-color: color-mix(in srgb, var(--wbas-accent) 42%, transparent) !important;
+  --cb-input-content-shadow: 0 8px 24px rgb(16 28 45 / .07) !important;
+  --cb-input-main-area-radius: 14px !important;
+  --cb-input-content-radius: 14px !important;
+  --vscode-chat-requestBorder: transparent !important;
+  --vscode-chat-requestBackground: color-mix(in srgb, var(--wbas-surface) 72%, transparent) !important;
+  --cb-team-member-card-background: color-mix(in srgb, var(--wbas-surface) 92%, transparent) !important;
+  --cb-text-primary: var(--wbas-text) !important;
+  --cb-text-secondary: color-mix(in srgb, var(--wbas-text) 72%, transparent) !important;
+  --cb-text-disabled: color-mix(in srgb, var(--wbas-text) 44%, transparent) !important;
+  --cb-text-link: var(--wbas-accent) !important;
+  --cb-vscode-editor-background: var(--wbas-surface) !important;
+  --cb-vscode-sideBar-background: color-mix(in srgb, var(--wbas-surface) 92%, transparent) !important;
+  --cb-vscode-foreground: var(--wbas-text) !important;
+  --cb-vscode-editor-foreground: var(--wbas-text) !important;
+  --cb-vscode-descriptionForeground: color-mix(in srgb, var(--wbas-text) 70%, transparent) !important;
+  --cb-vscode-input-background: color-mix(in srgb, var(--wbas-surface) 94%, var(--wbas-text) 6%) !important;
+  --cb-vscode-dropdown-background: color-mix(in srgb, var(--wbas-surface) 96%, var(--wbas-text) 4%) !important;
+  --cb-vscode-list-hoverBackground: color-mix(in srgb, var(--wbas-accent) 16%, transparent) !important;
+  --cb-vscode-toolbar-hoverBackground: color-mix(in srgb, var(--wbas-accent) 16%, transparent) !important;
+  --cb-vscode-scrollbarSlider-background: color-mix(in srgb, var(--wbas-accent) 30%, transparent) !important;
+  --cb-vscode-scrollbarSlider-hoverBackground: color-mix(in srgb, var(--wbas-accent) 48%, transparent) !important;
+  --cb-vscode-textLink-foreground: var(--wbas-accent) !important;
+  --cb-vscode-widget-border: color-mix(in srgb, var(--wbas-text) 12%, transparent) !important;
+  --cb-vscode-panel-border: color-mix(in srgb, var(--wbas-text) 10%, transparent) !important;
+  --cb-button-dark-background: var(--wbas-accent) !important;
+  --cb-button-dark-foreground: var(--wbas-surface) !important;
+  --cb-button-dark-hover-background: color-mix(in srgb, var(--wbas-accent) 84%, var(--wbas-secondary)) !important;
+  --cb-vscode-button-background: var(--wbas-accent) !important;
+  --cb-vscode-button-foreground: var(--wbas-surface) !important;
+  --cb-vscode-button-hoverBackground: color-mix(in srgb, var(--wbas-accent) 84%, var(--wbas-secondary)) !important;
+  --cb-stroke-secondary: color-mix(in srgb, var(--wbas-text) 12%, transparent) !important;
+}
+
+:root.workbuddy-ambient-skin #root {
+  position: relative;
+  isolation: isolate;
+  color: var(--wbas-text) !important;
+  background-color: var(--wbas-surface) !important;
+}
+
+:root.workbuddy-ambient-skin #root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image: var(--wbas-background-image);
+  background-position: var(--wbas-focus-x) var(--wbas-focus-y);
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: var(--wbas-current-opacity);
+  transition: opacity 240ms ease;
+}
+
+:root.workbuddy-ambient-skin #root::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 0 42%, color-mix(in srgb, var(--wbas-surface) 72%, transparent) 100%);
+  opacity: .72;
+}
+
+:root.workbuddy-ambient-skin[data-wbas-material="studio"][data-wbas-mode="home"] #root::after {
+  background:
+    radial-gradient(ellipse at 16% 8%, color-mix(in srgb, var(--wbas-accent) 14%, transparent), transparent 42%),
+    radial-gradient(ellipse at 88% 18%, color-mix(in srgb, var(--wbas-secondary) 12%, transparent), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--wbas-surface) 6%, transparent), color-mix(in srgb, var(--wbas-surface) 68%, transparent));
+  opacity: .72;
+}
+
+:root.workbuddy-ambient-skin[data-wbas-safe="left"] #root::after {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--wbas-surface) 90%, transparent) 0 22%, transparent 52%),
+    linear-gradient(180deg, transparent 0 42%, color-mix(in srgb, var(--wbas-surface) 72%, transparent) 100%);
+}
+
+:root.workbuddy-ambient-skin[data-wbas-safe="right"] #root::after {
+  background: linear-gradient(270deg, color-mix(in srgb, var(--wbas-surface) 90%, transparent) 0 22%, transparent 52%),
+    linear-gradient(180deg, transparent 0 42%, color-mix(in srgb, var(--wbas-surface) 72%, transparent) 100%);
+}
+
+:root.workbuddy-ambient-skin .teams-container,
+:root.workbuddy-ambient-skin .teams-container.is-mac,
+:root.workbuddy-ambient-skin [data-view-id],
+:root.workbuddy-ambient-skin .conversation-list,
+:root.workbuddy-ambient-skin .main-content,
+:root.workbuddy-ambient-skin .main-content--welcome,
+:root.workbuddy-ambient-skin .sidebar-next {
+  background: transparent !important;
+}
+
+:root.workbuddy-ambient-skin [data-view-id="sidebar"] {
+  background: color-mix(in srgb, var(--wbas-surface) calc(var(--wbas-sidebar-opacity) * 100%), transparent) !important;
+  border-right: 1px solid color-mix(in srgb, var(--wbas-accent) 28%, transparent) !important;
+  backdrop-filter: blur(20px) saturate(1.08);
+}
+
+:root.workbuddy-ambient-skin [data-view-id="main-content"] {
+  background: linear-gradient(180deg, transparent 0 40%, color-mix(in srgb, var(--wbas-surface) 70%, transparent) 100%) !important;
+}
+
+:root.workbuddy-ambient-skin[data-wbas-mode="work"] [data-view-id="main-content"],
+:root.workbuddy-ambient-skin[data-wbas-mode="detail"] [data-view-id="main-content"] {
+  background: color-mix(in srgb, var(--wbas-surface) 90%, transparent) !important;
+}
+
+:root.workbuddy-ambient-skin [data-view-id="detail-panel"] {
+  background: color-mix(in srgb, var(--wbas-surface) 94%, transparent) !important;
+  backdrop-filter: blur(18px);
+}
+
+/* Material Layer: quiet surfaces and light separation built on native WorkBuddy regions. */
+:root.workbuddy-ambient-skin[data-wbas-material="studio"] .workbuddy-topbar {
+  background: color-mix(in srgb, var(--wbas-surface) var(--wbas-panel-opacity), transparent) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--wbas-text) 7%, transparent) !important;
+  box-shadow: none;
+  backdrop-filter: blur(var(--wbas-material-blur)) saturate(1.06);
+}
+
+:root.workbuddy-ambient-skin[data-wbas-material="studio"] [data-view-id="sidebar"] {
+  border-right-color: color-mix(in srgb, var(--wbas-text) 8%, transparent) !important;
+  box-shadow: 8px 0 28px rgb(16 28 45 / calc(var(--wbas-shadow-strength) * .28));
+  backdrop-filter: blur(var(--wbas-material-blur)) saturate(1.08);
+}
+
+:root.workbuddy-ambient-skin[data-wbas-material="studio"] [data-view-id="main-content"] {
+  box-shadow: none;
+}
+
+:root.workbuddy-ambient-skin[data-wbas-material="studio"] [data-view-id="detail-panel"] {
+  border-left: 1px solid color-mix(in srgb, var(--wbas-text) 8%, transparent) !important;
+  box-shadow: -8px 0 28px rgb(16 28 45 / calc(var(--wbas-shadow-strength) * .26));
+  backdrop-filter: blur(var(--wbas-material-blur)) saturate(1.04);
+}
+
+:root.workbuddy-ambient-skin[data-wbas-material="studio"] [class*="input-area-container"],
+:root.workbuddy-ambient-skin[data-wbas-material="studio"] [class*="question-floating-card"] {
+  background: color-mix(in srgb, var(--wbas-surface) var(--wbas-panel-opacity), transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--wbas-text) 9%, transparent) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 24px rgb(16 28 45 / calc(var(--wbas-shadow-strength) * .7)), inset 0 1px 0 color-mix(in srgb, var(--wbas-text) 8%, transparent) !important;
+  backdrop-filter: blur(var(--wbas-material-blur)) saturate(1.06);
+}
+
+:root.workbuddy-ambient-skin[data-wbas-material="studio"][data-wbas-mode="home"] :is(
+  [class*="welcome-card"], [class*="suggestion-card"], [class*="template-card"],
+  [class*="team-member-card"], [class*="quick-action"], [class*="activity-card"]
+) {
+  background: color-mix(in srgb, var(--wbas-surface) var(--wbas-card-opacity), transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--wbas-text) 8%, transparent) !important;
+  border-radius: var(--wbas-material-radius) !important;
+  box-shadow: 0 8px 22px rgb(16 28 45 / calc(var(--wbas-shadow-strength) * .62)), inset 0 1px 0 color-mix(in srgb, var(--wbas-text) 7%, transparent) !important;
+  backdrop-filter: blur(var(--wbas-material-blur)) saturate(1.06);
+}
+
+:root.workbuddy-ambient-skin[data-wbas-material="studio"] :is(button, [role="button"]):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--wbas-accent) 76%, white) !important;
+  outline-offset: 2px;
+}
+
+:root.workbuddy-ambient-skin [class*="input-area-container"],
+:root.workbuddy-ambient-skin textarea,
+:root.workbuddy-ambient-skin [contenteditable="true"] {
+  backdrop-filter: blur(18px) saturate(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root.workbuddy-ambient-skin #root::before { transition: none; }
+}
