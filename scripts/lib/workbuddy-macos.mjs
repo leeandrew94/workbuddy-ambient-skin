@@ -1,4 +1,4 @@
-import { execFile as execFileCallback, spawn } from "node:child_process";
+import { execFile as execFileCallback } from "node:child_process";
 import { access, mkdir, open } from "node:fs/promises";
 import { promisify } from "node:util";
 
@@ -83,14 +83,13 @@ export async function launchWithCdp(port) {
   const paths = studioPaths();
   await mkdir(paths.stateRoot, { recursive: true, mode: 0o700 });
   const log = await open(paths.launchLogPath, "a", 0o600);
-  const env = { ...process.env, NO_PROXY: "127.0.0.1,localhost,::1", no_proxy: "127.0.0.1,localhost,::1" };
-  delete env.ELECTRON_RUN_AS_NODE;
-  delete env.NODE_OPTIONS;
-  await log.write(`\n[${new Date().toISOString()}] launch ${executable} --remote-debugging-port=${port}\n`);
+  await log.write(`\n[${new Date().toISOString()}] LaunchServices open ${APP_PATH} --args --remote-debugging-port=${port}\n`);
   try {
-    const child = spawn(executable, [`--remote-debugging-port=${port}`], { detached: true, stdio: ["ignore", log.fd, log.fd], env });
-    child.unref();
-    return { pid: child.pid, port, executable, logPath: paths.launchLogPath };
+    // LaunchServices creates WorkBuddy outside the Agent's inherited sandbox.
+    // Directly spawning Electron from an in-app Agent causes Chromium helpers to
+    // fail with "sandbox initialization failed: Operation not permitted".
+    await execFile("/usr/bin/open", ["-n", APP_PATH, "--args", `--remote-debugging-port=${port}`]);
+    return { port, executable, launcher: "LaunchServices", logPath: paths.launchLogPath };
   } finally { await log.close(); }
 }
 

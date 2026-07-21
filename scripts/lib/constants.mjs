@@ -30,6 +30,7 @@ export function studioPaths(home = homedir(), platform = process.platform, local
     deletedThemesRoot: pathJoin(stateRoot, "deleted-themes"),
     logPath: pathJoin(stateRoot, "ambient.log"),
     launchLogPath: pathJoin(stateRoot, "workbuddy-launch.log"),
+    requestPath: pathJoin(stateRoot, "apply-request.json"),
     resultPath: pathJoin(stateRoot, "apply-result.json"),
   };
 }

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
-import { access, mkdir, open, readFile, rename, writeFile } from "node:fs/promises";
+import { execFile as execFileCallback } from "node:child_process";
+import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
 import { bundledThemesRoot, DEFAULT_PORT, studioPaths, VERSION } from "./lib/constants.mjs";
@@ -11,6 +13,8 @@ import { forceQuitWorkBuddy, inspectWorkBuddy, launchNormally, launchWithCdp } f
 
 const entryPath = fileURLToPath(import.meta.url);
 const paths = studioPaths();
+const execFile = promisify(execFileCallback);
+const workerCommand = join(dirname(entryPath), "workbuddy-ambient-worker.command");
 
 function parse(argv) {
   const command = argv[0] || "help";
@@ -69,19 +73,19 @@ async function restartAndInject(themeId) {
 
 async function startAgentWorker(themeId) {
   const { activeId } = await selectedTheme(themeId);
+  await writeJson(paths.requestPath, { themeId: activeId, requestedAt: new Date().toISOString() });
   await writeJson(paths.resultPath, { status: "pending", themeId: activeId, port: DEFAULT_PORT, startedAt: new Date().toISOString() });
-  const log = await open(paths.logPath, "a", 0o600);
-  const env = { ...process.env, NO_PROXY: "127.0.0.1,localhost,::1", no_proxy: "127.0.0.1,localhost,::1" };
-  try {
-    const child = spawn(process.execPath, [entryPath, "worker", "--theme", activeId], {
-      detached: true, stdio: ["ignore", log.fd, log.fd], env,
-    });
-    child.unref();
-    return { ok: true, status: "pending", workerPid: child.pid, themeId: activeId, port: DEFAULT_PORT, resultPath: paths.resultPath };
-  } finally { await log.close(); }
+  if (process.platform === "darwin") {
+    await access(workerCommand);
+    await execFile("/usr/bin/open", ["-g", workerCommand]);
+    return { ok: true, status: "pending", launcher: "Terminal command worker", themeId: activeId, port: DEFAULT_PORT, resultPath: paths.resultPath };
+  }
+  throw new Error("Agent apply is not available on this platform; choose ② and run terminal-apply");
 }
 
 async function runWorker(themeId) {
+  if (!themeId) themeId = (await readJson(paths.requestPath))?.themeId;
+  if (!themeId) throw new Error("missing apply request theme");
   await new Promise((resolve) => setTimeout(resolve, 500));
   try {
     const result = await restartAndInject(themeId);
