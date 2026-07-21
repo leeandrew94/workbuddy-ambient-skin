@@ -61,6 +61,8 @@ export async function quitWorkBuddy({ timeoutMs = 15000 } = {}) {
   return runPowerShell("quit", ["-TimeoutMs", timeoutMs]);
 }
 
+export async function forceQuitWorkBuddy() { return runPowerShell("force-quit"); }
+
 export async function launchWithCdp(port) {
   return runPowerShell("launch-cdp", ["-Port", port]);
 }

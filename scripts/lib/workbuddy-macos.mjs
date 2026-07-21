@@ -89,6 +89,55 @@ export async function quitWorkBuddy({ timeoutMs = 15000, isRunning = isWorkBuddy
   throw new Error("WorkBuddy did not quit cleanly; no process was force-killed");
 }
 
+export function parseExactExecutablePids(output, expectedExecutable = executable) {
+  const matches = new Set();
+  let pid = null;
+  for (const line of String(output || "").split(/\r?\n/)) {
+    if (line.startsWith("p")) {
+      const candidate = Number(line.slice(1));
+      pid = Number.isInteger(candidate) && candidate > 1 ? candidate : null;
+    } else if (pid && line === `n${expectedExecutable}`) {
+      matches.add(pid);
+    }
+  }
+  return [...matches];
+}
+
+export async function exactWorkBuddyPids(run = execFile) {
+  try {
+    const { stdout } = await run("/usr/sbin/lsof", ["-n", "-a", "-c", "Electron", "-d", "txt", "-Fpcn"]);
+    return parseExactExecutablePids(stdout);
+  } catch { return []; }
+}
+
+export async function forceQuitWorkBuddy({ timeoutMs = 5000, inspect = inspectWorkBuddy, findPids = exactWorkBuddyPids, signal = process.kill } = {}) {
+  const info = await inspect();
+  if (!info.appFound || !info.bundleMatches || info.executable !== executable) {
+    throw new Error("official WorkBuddy bundle identity could not be verified; refusing forced restart");
+  }
+  const initial = await findPids();
+  if (!initial.length) return { wasRunning: false, stopped: true, forced: false, pids: [] };
+  for (const pid of initial) {
+    try { signal(pid, "SIGTERM"); } catch (error) { if (error.code !== "ESRCH") throw error; }
+  }
+  const deadline = Date.now() + timeoutMs;
+  let remaining = initial;
+  while (Date.now() < deadline) {
+    remaining = (await findPids()).filter((pid) => initial.includes(pid));
+    if (!remaining.length) return { wasRunning: true, stopped: true, forced: true, pids: initial };
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  // Re-query the exact executable mapping immediately before SIGKILL to guard against PID reuse.
+  remaining = (await findPids()).filter((pid) => initial.includes(pid));
+  for (const pid of remaining) {
+    try { signal(pid, "SIGKILL"); } catch (error) { if (error.code !== "ESRCH") throw error; }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  const survivors = (await findPids()).filter((pid) => initial.includes(pid));
+  if (survivors.length) throw new Error(`verified WorkBuddy process did not stop after forced restart: ${survivors.join(", ")}`);
+  return { wasRunning: true, stopped: true, forced: true, pids: initial };
+}
+
 export async function launchWithCdp(port) {
   const info = await inspectWorkBuddy();
   if (!info.appFound || !info.bundleMatches) throw new Error("official WorkBuddy bundle was not found at /Applications/WorkBuddy.app");

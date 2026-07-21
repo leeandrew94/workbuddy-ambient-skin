@@ -8,6 +8,7 @@ function platform() {
 }
 
 export const inspectWorkBuddy = (...args) => platform().inspectWorkBuddy(...args);
+export const forceQuitWorkBuddy = (...args) => platform().forceQuitWorkBuddy(...args);
 export const isWorkBuddyRunning = (...args) => platform().isWorkBuddyRunning(...args);
 export const launchNormally = (...args) => platform().launchNormally(...args);
 export const launchWithCdp = (...args) => platform().launchWithCdp(...args);
@@ -19,4 +20,5 @@ export const verifiedCdpOwner = (...args) => platform().verifiedCdpOwner(...args
 // Kept as named exports for focused platform unit tests and compatibility.
 export const isMainWorkBuddyCommand = macos.isMainWorkBuddyCommand;
 export const parseApplicationRunning = macos.parseApplicationRunning;
+export const parseExactExecutablePids = macos.parseExactExecutablePids;
 export { candidateWindowsPaths, normalizeWindowsPath } from "./workbuddy-windows.mjs";

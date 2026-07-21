@@ -3,7 +3,7 @@ import { dirname, join, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const PRODUCT_ID = "workbuddy-ambient-skin";
-export const VERSION = "0.9.0";
+export const VERSION = "0.10.0";
 export const BUNDLE_ID = "com.workbuddy.workbuddy";
 export const APP_PATH = "/Applications/WorkBuddy.app";
 export const DEFAULT_PORT = 9347;

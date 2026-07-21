@@ -17,6 +17,7 @@ async function readJson(path) {
 export function handoffArguments(options, token) {
   const args = ["handoff-apply", "--theme", options.theme || "paper-aurora", "--port", String(options.port), "--handoff-token", token];
   if (options.watch === "false") args.push("--watch", "false");
+  if (options["force-restart"] === "confirmed") args.push("--force-restart", "confirmed");
   return args;
 }
 

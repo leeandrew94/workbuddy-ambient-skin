@@ -10,8 +10,9 @@ import { fetchBrowserIdentity, fetchTargets, waitForTargets } from "./lib/cdp.mj
 import { finishHandoff, handoffArguments, readHandoffResult, reserveHandoff, validateHandoff } from "./lib/handoff.mjs";
 import { applyToRenderer, removeFromRenderer, rendererStatus, verifyRendererPassport, watchRenderer } from "./lib/injector.mjs";
 import { createPassport, publicState, validPassport } from "./lib/session.mjs";
+import { stopForRestart } from "./lib/restart.mjs";
 import { createTheme, deleteUserTheme, listThemes, renameUserTheme } from "./lib/theme.mjs";
-import { inspectWorkBuddy, isWorkBuddyRunning, launchNormally, launchWithCdp, processCommand, quitWorkBuddy, selectPort, verifiedCdpOwner } from "./lib/workbuddy.mjs";
+import { forceQuitWorkBuddy, inspectWorkBuddy, isWorkBuddyRunning, launchNormally, launchWithCdp, processCommand, quitWorkBuddy, selectPort, verifiedCdpOwner } from "./lib/workbuddy.mjs";
 import { chooseApplyPath } from "./lib/workflow.mjs";
 
 const entryPath = fileURLToPath(import.meta.url);
@@ -105,6 +106,7 @@ async function applyDirect(options) {
   let selectedPort = port(options.port ?? previous?.port);
   let targets = await liveTargets(selectedPort);
   let launch = null;
+  let shutdown = null;
   let authorization = targets.length ? await authorizeLiveSession(previous, selectedPort) : null;
   if (!targets.length || !authorization) {
     if (options.restart !== "confirmed") {
@@ -118,7 +120,7 @@ async function applyDirect(options) {
       throw new Error("the active skin session is not authenticated; use the graceful handoff to replace it");
     }
     await stopWatcher(previous);
-    await quitWorkBuddy();
+    shutdown = await stopForRestart({ forceRestart: options["force-restart"], quit: quitWorkBuddy, forceQuit: forceQuitWorkBuddy });
     selectedPort = await selectPort(selectedPort);
     launch = await launchWithCdp(selectedPort);
     targets = await waitForTargets(selectedPort);
@@ -139,7 +141,7 @@ async function applyDirect(options) {
   await writeState(state);
   const watcherPid = watcherGeneration ? await startWatcher(selectedPort, watcherGeneration) : null;
   await writeState({ ...state, watcherPid, updatedAt: new Date().toISOString() });
-  return { ok: true, ...result, port: selectedPort, watcherPid, ownership, sessionPassport: true };
+  return { ok: true, ...result, port: selectedPort, watcherPid, ownership, sessionPassport: true, ...(shutdown || {}) };
 }
 
 async function startHandoff(options) {
@@ -175,10 +177,15 @@ async function runHandoff(options) {
   const token = options["handoff-token"];
   const reservation = await validateHandoff(paths, token);
   try {
-    const applied = await applyDirect({ theme: reservation.themeId, port: String(reservation.port), watch: reservation.watch ? "true" : "false", restart: "confirmed", "replace-session": "confirmed" });
+    const applied = await applyDirect({ theme: reservation.themeId, port: String(reservation.port), watch: reservation.watch ? "true" : "false", restart: "confirmed", "force-restart": options["force-restart"], "replace-session": "confirmed" });
     const verification = await status({ port: String(applied.port) });
     if (!verification.ok) throw new Error("skin handoff applied but verification failed");
-    const result = await finishHandoff(paths, token, { status: "complete", ok: true, themeId: applied.themeId, port: applied.port, mode: verification.renderers[0]?.mode ?? null });
+    const result = await finishHandoff(paths, token, {
+      status: "complete", ok: true, themeId: applied.themeId, port: applied.port,
+      mode: verification.renderers[0]?.mode ?? null,
+      forceRestarted: applied.forceRestarted ?? false,
+      ...(applied.gracefulError ? { gracefulError: applied.gracefulError } : {}),
+    });
     return { ok: true, handoff: true, ...result };
   } catch (error) {
     await writeState({ schemaVersion: 2, version: VERSION, status: "failed", themeId: reservation.themeId, port: reservation.port, watcherPid: null, watcherGeneration: null, error: error.message, updatedAt: new Date().toISOString() });
@@ -200,10 +207,10 @@ async function pause(options) {
 async function restore(options) {
   if (options.restart !== "confirmed") throw new Error("restore closes and reopens WorkBuddy; rerun with --restart confirmed");
   const paused = await pause(options);
-  await quitWorkBuddy();
+  const shutdown = await stopForRestart({ forceRestart: options["force-restart"], quit: quitWorkBuddy, forceQuit: forceQuitWorkBuddy });
   await launchNormally();
   await writeState({ schemaVersion: 2, version: VERSION, status: "restored", watcherPid: null, watcherGeneration: null, updatedAt: new Date().toISOString() });
-  return { ok: true, restored: true, paused };
+  return { ok: true, restored: true, paused, ...shutdown };
 }
 
 async function status(options) {
@@ -223,7 +230,7 @@ export async function run(argv) {
   const { command, options } = parse(argv);
   if (command === "help") return {
     version: VERSION,
-    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "apply [--theme ID] --restart confirmed", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed"],
+    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "apply [--theme ID] --restart confirmed [--force-restart confirmed]", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed [--force-restart confirmed]"],
   };
   if (command === "doctor") {
     const app = await inspectWorkBuddy();
