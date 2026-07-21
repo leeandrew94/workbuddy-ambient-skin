@@ -1,29 +1,27 @@
 # WorkBuddy Ambient Skin
 
-English · [中文](README_zh.md)
+WorkBuddy 不必一直是一块灰色的工作面板。
 
-WorkBuddy does not have to feel like a gray utility panel.
+Ambient Skin 让首页留住一张你喜欢的画面；进入对话、任务或详情后，背景会自动安静下来。侧栏、输入框和菜单仍是 WorkBuddy 原来的样子，变化的只是工作空间的光线、颜色和气氛。
 
-Ambient Skin lets the home screen hold an image you care about, then fades into the background when the conversation becomes the work. The sidebar, composer, and menus remain native. Only the light, color, and atmosphere change.
+> 非腾讯官方产品。目前支持 macOS，不修改 `WorkBuddy.app`、`app.asar` 或应用签名。
 
-> This is not an official Tencent product. It currently supports macOS and does not modify `WorkBuddy.app`, `app.asar`, or the application signature.
+## 它改变什么
 
-## What changes
+- **改空间，不改控件**：保留原生交互，用 Material Layer 分别处理顶栏、侧栏、卡片、输入框和详情区。
+- **知道什么时候收敛**：首页完整呈现，工作页降低对比度，详情页进一步淡出。
+- **看得懂你的图片**：用 OKLCH 感知色彩提取主色与差异化辅色，并判断明暗、视觉焦点和文字安全区。
+- **随时换，也随时退**：右上角切换主题；暂停或完整恢复都不碰官方安装文件。
 
-- **The space, not the controls**: native interactions stay intact while a Material Layer styles the top bar, sidebar, cards, composer, and detail area independently.
-- **Quiet when it matters**: the home screen is expressive; work and detail views progressively soften the background.
-- **Images become layouts**: local OKLCH analysis derives a primary color, a distinct secondary color, appearance, focal position, and a text-safe region.
-- **Easy to leave**: switch from the top-right menu, pause live, or fully restore the native app.
+## 一分钟开始
 
-## Start in a minute
+如果你在支持 Skill 的 AI 中使用它，直接说：
 
-In an AI client that supports Skills, say:
+> 使用 `$workbuddy-ambient-skin` 给我的 WorkBuddy 换一个安静的皮肤。
 
-> Use `$workbuddy-ambient-skin` to give my WorkBuddy a calm skin.
+AI 会按 [SKILL.md](SKILL.md) 检查环境、推荐主题，并在需要重启 WorkBuddy 前征得确认。
 
-The agent follows [SKILL.md](SKILL.md), checks the environment, recommends a theme, and asks before restarting WorkBuddy.
-
-For manual use, run three commands:
+手动使用只需要三步：
 
 ```bash
 scripts/workbuddy-ambient.sh doctor
@@ -31,73 +29,73 @@ scripts/workbuddy-ambient.sh list
 scripts/workbuddy-ambient.sh apply --theme paper-aurora --restart confirmed
 ```
 
-`apply` restarts WorkBuddy, so save unfinished input or tasks first. Then verify the session with:
+`apply` 会重启 WorkBuddy。请先保存未完成的输入或任务。完成后可运行：
 
-On first apply, the command returns `handoff: true, status: pending`. A detached Graceful Handoff then quits and reopens WorkBuddy normally. It never uses `pkill`; if the app refuses to quit cleanly, the handoff stops safely.
+首次应用会先返回 `handoff: true, status: pending`，然后由独立的 Graceful Handoff 正常退出并重新打开 WorkBuddy。它不会使用 `pkill`；如果应用拒绝正常退出，流程会安全停止。
 
 ```bash
 scripts/workbuddy-ambient.sh verify
 ```
 
-## Bring your own image
+## 把自己的图片带进来
 
-Once a skin is active, a `◐` button appears in the top-right corner. Use it to switch bundled themes, choose a local image, or temporarily return to the native appearance.
+应用皮肤后，WorkBuddy 右上角会出现 `◐`。点击它，可以切换内置主题、选择本地图片，或暂时回到“原生界面”。
 
-Ambient Skin analyzes the image locally to:
+选择图片后，Ambient Skin 会在本机完成分析：
 
-- choose a light or dark appearance from median perceptual lightness;
-- cluster colors in OKLCH and select a secondary hue that remains distinct from the primary;
-- correct accent and text colors against the generated surface for reliable contrast;
-- keep content away from the visual subject and retain a useful focal point;
-- resize the asset to a WebP with a maximum edge of 1600px.
+- 根据感知亮度中位数选择深色或浅色界面；
+- 在 OKLCH 空间提取主色，并选择有足够色相距离的辅色；
+- 自动校正强调色与文字色的对比度；
+- 避开主体区域放置内容，并保留合适的背景焦点；
+- 将图片缩放为最大边 1600px 的 WebP，减少常驻开销。
 
-The menu keeps up to eight recent images. `✎` opens an inline name editor and `×` opens an inline deletion confirmation, so neither action depends on an Electron system dialog. Renaming does not reanalyze the image.
+菜单最多保留最近 8 张图片。每张图片右侧的 `✎` 可以直接展开名称编辑器，`×` 会展开删除确认；两者都在菜单内完成，不依赖系统弹窗。重命名不会重新分析图片。
 
-For command-line theme management:
+如果想通过命令长期管理图片主题：
 
 ```bash
 scripts/workbuddy-ambient.sh create \
   --image "/absolute/path/background.webp" \
   --name "My Theme"
-scripts/workbuddy-ambient.sh rename --theme THEME_ID --name "New Name"
+scripts/workbuddy-ambient.sh rename --theme THEME_ID --name "新名称"
 scripts/workbuddy-ambient.sh delete --theme THEME_ID --confirm yes
 ```
 
-CLI deletion is recoverable: the directory moves into the local `deleted-themes` store. Bundled themes cannot be renamed or deleted.
+命令行删除采用可恢复移除，文件会转移到本机的 `deleted-themes` 目录。内置主题不能删除或重命名。
 
-PNG, JPEG, and WebP are supported up to 15 MB and 50 megapixels. Clean background artwork usually works better than images containing text, buttons, or UI screenshots.
+支持 PNG、JPEG、WebP，单张不超过 15 MB、5000 万像素。纯背景图通常比带文字、按钮或界面截图的图片更自然。
 
-## Bundled mood
+## 内置氛围
 
-| Theme | Character | Best for |
+| 主题 | 感觉 | 适合 |
 |---|---|---|
-| `paper-aurora` | Pale gray, ice blue, airy | Documents and everyday work |
+| `paper-aurora` | 浅灰、冰蓝、通透 | 文档与日常办公 |
 
-Paper Aurora uses an original CSS gradient and a lightweight Material Layer with translucent regions, quiet depth, and consistent radii. Chat surfaces avoid prominent colored outlines, while work and detail views automatically strengthen their surfaces for readable text.
+晨雾极光由原创 CSS 渐变生成，并启用轻量 Material Layer：半透明分区、柔和层次和统一圆角。聊天区避免使用明显彩色描边，工作页与详情页会自动提高遮罩强度，以文字清晰度为优先。
 
-## Everyday actions
+## 日常动作
 
-| Intent | Command |
+| 想做什么 | 命令 |
 |---|---|
-| Browse themes | `scripts/workbuddy-ambient.sh list` |
-| Rename an image theme | `scripts/workbuddy-ambient.sh rename --theme THEME_ID --name "New Name"` |
-| Delete an image theme | `scripts/workbuddy-ambient.sh delete --theme THEME_ID --confirm yes` |
-| Switch instantly | `scripts/workbuddy-ambient.sh switch --theme THEME_ID` |
-| Inspect the session | `scripts/workbuddy-ambient.sh status` |
-| Pause the skin | `scripts/workbuddy-ambient.sh pause` |
-| Fully restore | `scripts/workbuddy-ambient.sh restore --restart confirmed` |
+| 查看主题 | `scripts/workbuddy-ambient.sh list` |
+| 重命名图片主题 | `scripts/workbuddy-ambient.sh rename --theme THEME_ID --name "新名称"` |
+| 删除图片主题 | `scripts/workbuddy-ambient.sh delete --theme THEME_ID --confirm yes` |
+| 即时切换 | `scripts/workbuddy-ambient.sh switch --theme THEME_ID` |
+| 查看状态 | `scripts/workbuddy-ambient.sh status` |
+| 暂停皮肤 | `scripts/workbuddy-ambient.sh pause` |
+| 完整恢复 | `scripts/workbuddy-ambient.sh restore --restart confirmed` |
 
-`switch` and `pause` require an active skin session. After WorkBuddy fully exits, run `apply` again.
+`switch` 和 `pause` 需要当前皮肤会话仍在运行。WorkBuddy 完全退出后，再次执行 `apply` 即可。
 
-## Native by design
+## 保持原生的边界
 
-Ambient Skin uses the Chrome DevTools Protocol bound only to `127.0.0.1` to locate WorkBuddy's renderer. It injects theme variables, background styles, and an isolated Shadow DOM menu. It does not rewrite application behavior and has no npm runtime dependencies.
+Ambient Skin 通过仅绑定 `127.0.0.1` 的 Chrome DevTools Protocol 找到 WorkBuddy 渲染页，注入主题变量、背景样式和一个隔离的 Shadow DOM 菜单。它不重写页面业务逻辑，也没有 npm 运行时依赖。
 
-That lightweight approach has clear boundaries:
+这套方式有意保持轻量，但也有明确边界：
 
-- do not run untrusted local software while a skin session is active;
-- macOS is currently the only supported platform;
-- WorkBuddy changes to key DOM anchors or `--cb-*` variables may require an adapter update;
-- a full restore restarts WorkBuddy and closes the CDP skin session.
+- 皮肤会话开启时，不要运行来源不明的本地程序；
+- 当前只支持 macOS；
+- WorkBuddy 若调整关键 DOM 或 `--cb-*` 变量，适配层可能需要更新；
+- “完整恢复”会重启 WorkBuddy，并关闭用于皮肤会话的 CDP。
 
-For development, run `npm test` and `npm run check`. See [references/theme-schema.md](references/theme-schema.md) for the custom theme format.
+开发验证使用 `npm test` 和 `npm run check`。自定义主题格式见 [references/theme-schema.md](references/theme-schema.md)。
