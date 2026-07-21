@@ -3,7 +3,7 @@ param(
   [Parameter(Mandatory = $true)]
   [ValidateSet('inspect', 'is-running', 'quit', 'force-quit', 'launch-cdp', 'launch-normal', 'process-command', 'verify-owner')]
   [string]$Action,
-  [int]$Port = 9347,
+  [int]$Port = 9223,
   [int]$TimeoutMs = 15000,
   [int]$ProcessId = 0
 )
@@ -106,14 +106,14 @@ switch ($Action) {
   }
   'force-quit' {
     $info = Require-WorkBuddy
-    $processes = @(Get-ExactProcesses $info.executable -MainOnly)
+    $processes = @(Get-ExactProcesses $info.executable)
     if ($processes.Count -eq 0) { Write-Json @{ wasRunning = $false; stopped = $true; forced = $false; pids = @() }; break }
     $initialPids = @($processes | ForEach-Object { [int]$_.ProcessId })
     foreach ($processIdToStop in $initialPids) {
-      $verified = @(Get-ExactProcesses $info.executable -MainOnly | Where-Object { [int]$_.ProcessId -eq $processIdToStop })
+      $verified = @(Get-ExactProcesses $info.executable | Where-Object { [int]$_.ProcessId -eq $processIdToStop })
       if ($verified.Count -gt 0) { Stop-Process -Id $processIdToStop -Force -ErrorAction Stop }
     }
-    $remaining = @(Get-ExactProcesses $info.executable -MainOnly | Where-Object { $initialPids -contains [int]$_.ProcessId })
+    $remaining = @(Get-ExactProcesses $info.executable | Where-Object { $initialPids -contains [int]$_.ProcessId })
     if ($remaining.Count -gt 0) { throw 'Verified WorkBuddy process did not stop after forced restart' }
     Start-Sleep -Milliseconds 2000
     Write-Json @{ wasRunning = $true; stopped = $true; forced = $true; pids = $initialPids; settledMs = 2000 }

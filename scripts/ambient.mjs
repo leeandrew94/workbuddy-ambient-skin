@@ -100,10 +100,15 @@ async function validateTheme(options) {
   return { allThemes, activeId };
 }
 
+function restartPort(options, state) {
+  if (options.port != null) return port(options.port);
+  return state?.status === "active" || state?.status === "paused" ? port(state.port) : DEFAULT_PORT;
+}
+
 async function applyDirect(options) {
   const { allThemes, activeId } = await validateTheme(options);
   const previous = await readState();
-  let selectedPort = port(options.port ?? previous?.port);
+  let selectedPort = restartPort(options, previous);
   let targets = await liveTargets(selectedPort);
   let launch = null;
   let shutdown = null;
@@ -158,7 +163,7 @@ async function applyDirect(options) {
 async function startHandoff(options) {
   const { activeId } = await validateTheme(options);
   const previous = await readState();
-  const selectedPort = port(options.port ?? previous?.port);
+  const selectedPort = restartPort(options, previous);
   await mkdir(paths.stateRoot, { recursive: true });
   const reservation = await reserveHandoff(paths, { theme: activeId, port: selectedPort, watch: options.watch });
   await writeState({ schemaVersion: 2, version: VERSION, status: "handoff", themeId: activeId, port: selectedPort, watcherPid: null, watcherGeneration: null, updatedAt: new Date().toISOString() });
@@ -177,11 +182,11 @@ async function startHandoff(options) {
 
 async function apply(options) {
   const previous = await readState();
-  const selectedPort = port(options.port ?? previous?.port);
+  const selectedPort = restartPort(options, previous);
   const targets = await liveTargets(selectedPort);
   const authorization = targets.length ? await authorizeLiveSession(previous, selectedPort) : null;
   const path = chooseApplyPath({ targetsAvailable: targets.length > 0, authenticated: Boolean(authorization), restartConfirmed: options.restart === "confirmed" });
-  return path === "handoff" ? startHandoff(options) : applyDirect(options);
+  return path === "handoff" ? startHandoff({ ...options, port: String(selectedPort) }) : applyDirect(options);
 }
 
 async function runHandoff(options) {
@@ -189,11 +194,12 @@ async function runHandoff(options) {
   const reservation = await validateHandoff(paths, token);
   try {
     const applied = await applyDirect({ theme: reservation.themeId, port: String(reservation.port), watch: reservation.watch ? "true" : "false", restart: "confirmed", "force-restart": options["force-restart"], "replace-session": "confirmed" });
-    const verification = await status({ port: String(applied.port) });
-    if (!verification.ok) throw new Error("skin handoff applied but verification failed");
+    const renderers = await rendererStatus(applied.port);
+    const verified = renderers.length > 0 && renderers.every((renderer) => renderer.pass && renderer.themeId === reservation.themeId);
+    if (!verified) throw new Error(`skin injection verification failed for theme ${reservation.themeId}`);
     const result = await finishHandoff(paths, token, {
       status: "complete", ok: true, themeId: applied.themeId, port: applied.port,
-      mode: verification.renderers[0]?.mode ?? null,
+      mode: renderers[0]?.mode ?? null,
       forceRestarted: applied.forceRestarted ?? false,
       ...(applied.gracefulError ? { gracefulError: applied.gracefulError } : {}),
     });
@@ -226,7 +232,9 @@ async function restore(options) {
 
 async function status(options) {
   const state = await readState();
-  const handoff = await readHandoffResult(paths).catch(() => null);
+  const recordedHandoff = await readHandoffResult(paths).catch(() => null);
+  const handoff = state?.status === "active" && recordedHandoff?.finishedAt
+    && Date.parse(recordedHandoff.finishedAt) < Date.parse(state.updatedAt) ? null : recordedHandoff;
   const selectedPort = port(options.port ?? state?.port);
   try {
     const session = await authorizeLiveSession(state, selectedPort);

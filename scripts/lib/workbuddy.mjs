@@ -20,5 +20,6 @@ export const verifiedCdpOwner = (...args) => platform().verifiedCdpOwner(...args
 // Kept as named exports for focused platform unit tests and compatibility.
 export const isMainWorkBuddyCommand = macos.isMainWorkBuddyCommand;
 export const parseApplicationRunning = macos.parseApplicationRunning;
+export const parseBundleExecutablePids = macos.parseBundleExecutablePids;
 export const parseExactExecutablePids = macos.parseExactExecutablePids;
 export { candidateWindowsPaths, normalizeWindowsPath } from "./workbuddy-windows.mjs";
