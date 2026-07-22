@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { execFile as execFileCallback } from "node:child_process";
-import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -72,21 +74,33 @@ async function windowsTerminalApply(themeId) {
   return { ...(await inject(activeId)), shutdown, launch };
 }
 
-async function submitApplyJob(themeId) {
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", `'"'"'`)}'`;
+}
+
+async function openApplyLauncher(themeId) {
   const { activeId } = await selectedTheme(themeId);
   if (process.platform === "darwin") {
     await access(applyCommand);
-    const label = "com.workbuddy.ambient-skin.apply";
-    const supervisorLog = join(paths.stateRoot, "launchctl.log");
-    await mkdir(paths.stateRoot, { recursive: true });
-    await execFile("/bin/launchctl", ["remove", label]).catch(() => {});
-    await execFile("/bin/launchctl", [
-      "submit", "-l", label,
-      "-o", supervisorLog,
-      "-e", supervisorLog,
-      "--", "/bin/bash", applyCommand, "--theme", activeId,
-    ]);
-    return { ok: true, status: "launched", launcher: "launchd", label, themeId: activeId, port: DEFAULT_PORT };
+    const launcher = join(tmpdir(), `workbuddy-ambient-apply-${randomUUID()}.command`);
+    const body = [
+      "#!/bin/bash",
+      `launcher=${shellQuote(launcher)}`,
+      "trap '/bin/rm -f \"$launcher\"' EXIT",
+      `${shellQuote(applyCommand)} --theme ${shellQuote(activeId)}`,
+      "status=$?",
+      "exit $status",
+      "",
+    ].join("\n");
+    await writeFile(launcher, body, { mode: 0o700 });
+    await chmod(launcher, 0o700);
+    try {
+      await execFile("/usr/bin/open", [launcher]);
+    } catch (error) {
+      await rm(launcher, { force: true }).catch(() => {});
+      throw error;
+    }
+    return { ok: true, status: "launched", launcher: "LaunchServices command", themeId: activeId, port: DEFAULT_PORT };
   }
   throw new Error("Agent apply is not available on this platform; choose ② and run the platform launcher");
 }
@@ -130,7 +144,7 @@ export async function run(argv) {
   }
   if (command === "apply") {
     if (options.restart !== "confirmed") throw new Error("choose ① confirm apply or ② copy the terminal command");
-    return submitApplyJob(options.theme);
+    return openApplyLauncher(options.theme);
   }
   if (command === "terminal-apply") {
     if (options.restart !== "confirmed") throw new Error("terminal-apply requires --restart confirmed");

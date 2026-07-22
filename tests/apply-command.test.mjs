@@ -14,10 +14,10 @@ test("macOS apply uses one synchronous restart pipeline", async () => {
   assert.doesNotMatch(script, /pending|apply-request|apply-result|worker/);
 });
 
-test("Agent apply delegates to a launchd-owned one-shot job", async () => {
+test("Agent apply opens a disposable command through LaunchServices", async () => {
   const source = await readFile(new URL("../scripts/ambient.mjs", import.meta.url), "utf8");
-  assert.match(source, /"\/bin\/launchctl"/);
-  assert.match(source, /"submit", "-l", label/);
-  assert.match(source, /com\.workbuddy\.ambient-skin\.apply/);
-  assert.doesNotMatch(source, /tell application \\"Terminal\\"|do script|open\", \[\"-a\", \"Terminal\"/);
+  assert.match(source, /workbuddy-ambient-apply-.*\.command/);
+  assert.match(source, /"\/usr\/bin\/open", \[launcher\]/);
+  assert.match(source, /rm -f/);
+  assert.doesNotMatch(source, /tell application \\"Terminal\\"|do script|launchctl/);
 });
