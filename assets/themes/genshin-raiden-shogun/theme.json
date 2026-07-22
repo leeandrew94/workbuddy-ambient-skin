@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "genshin-raiden-shogun",
+  "name": "原神 · 雷神",
+  "image": "hero.webp",
+  "background": null,
+  "appearance": "dark",
+  "palette": "auto",
+  "art": {
+    "focusX": 0.5,
+    "focusY": 0.42,
+    "safeArea": "auto"
+  },
+  "modes": {
+    "homeOpacity": 0.96,
+    "workOpacity": 0.08,
+    "detailOpacity": 0.04,
+    "sidebarOpacity": 0.93
+  },
+  "material": {
+    "style": "studio",
+    "panelOpacity": 0.9,
+    "cardOpacity": 0.84,
+    "blur": 22,
+    "radius": 16,
+    "borderStrength": 0.16,
+    "shadowStrength": 0.12
+  }
+}
