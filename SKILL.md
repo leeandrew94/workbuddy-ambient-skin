@@ -16,11 +16,7 @@ Use the platform entry point. Never edit `WorkBuddy.app`, `app.asar`, or the app
 ## Apply workflow
 
 1. Run `doctor`, then `list` or create a theme from the user's image.
-2. Before any apply, show exactly these choices and wait:
-   - **① 确认 apply**：Agent 执行并验证皮肤；WorkBuddy 会被强制重启，未保存内容可能丢失。
-   - **② 复制命令跑**：Agent 不操作 WorkBuddy，只返回一条完整本机终端命令。
-3. For choice ① on macOS, run `apply --theme ID --restart confirmed`. It opens a temporary `.command` through LaunchServices (the programmatic equivalent of double-clicking it). Terminal independently runs the same `apply.command`, survives the WorkBuddy shutdown, and deletes the temporary launcher on exit. This uses neither AppleScript automation nor `launchctl`. Do not run another apply.
-4. For choice ②, detect the operating system and return exactly one fenced command block for that system. Replace `ID` with the selected theme's real ID so the command can be copied unchanged. Do not show both platforms unless the user explicitly asks for both.
+2. Never execute a restart/apply command from the Agent sandbox. Detect the operating system and return exactly one fenced command block for that system. Replace `ID` with the selected theme's real ID so the command can be copied unchanged. Do not show both platforms unless the user explicitly asks for both.
 
 macOS:
 
@@ -32,9 +28,9 @@ macOS:
 & "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" terminal-apply --theme ID --restart confirmed
 ```
 
-Precede the command with one short warning that WorkBuddy will be force-restarted and unsaved input may be lost. Do not abbreviate the path, omit required flags, or ask the user to `cd` into the skill directory.
+Precede the command with one short warning that WorkBuddy will be force-restarted and unsaved input may be lost. Ask the user to paste it into their own Terminal or PowerShell. Do not abbreviate the path, omit required flags, ask the user to `cd`, or attempt the command on their behalf.
 
-On macOS both choices run the same visible, synchronous `apply.command`: close WorkBuddy, wait two seconds, start Electron once with `--remote-debugging-port=9347`, wait for CDP and the renderer, inject once, and verify once. Never retry, change ports, or launch WorkBuddy normally after failure.
+The manual command closes WorkBuddy, waits two seconds, starts it once with `--remote-debugging-port=9347`, waits for CDP and the renderer, injects once, and verifies once. Never retry, change ports, or launch WorkBuddy normally after failure.
 
 ## Theme commands
 
@@ -51,7 +47,6 @@ When CDP is already active, use `switch --theme ID` for a no-restart change. Use
 
 ## Result handling
 
-- `status: launched` means LaunchServices opened choice ① in Terminal. Wait for WorkBuddy to reopen, then read `status` once; do not start another apply.
 - Success requires `status`/`verify` to report renderer markers, the requested theme ID, the menu, and a known mode.
 - On failure, report the exact JSON error plus the current tail of `apply.log`; use `workbuddy-launch.log` for Electron-start failures. Both logs are under `~/Library/Application Support/WorkBuddyAmbientSkin/`. Do not run extra restart attempts or infer causes from historical entries.
 - Port `9347` is fixed. If occupied, fail clearly instead of selecting another port.

@@ -14,12 +14,9 @@ test("macOS apply uses one synchronous restart pipeline", async () => {
   assert.doesNotMatch(script, /pending|apply-request|apply-result|worker/);
 });
 
-test("Agent apply opens a disposable command through LaunchServices", async () => {
+test("Agent runtime contains no automatic apply handoff", async () => {
   const source = await readFile(new URL("../scripts/ambient.mjs", import.meta.url), "utf8");
-  assert.match(source, /workbuddy-ambient-apply-.*\.command/);
-  assert.match(source, /"\/usr\/bin\/open", \[launcher\]/);
-  assert.match(source, /rm -f/);
-  assert.doesNotMatch(source, /tell application \\"Terminal\\"|do script|launchctl/);
+  assert.doesNotMatch(source, /command === "apply"|openApply|workbuddy-ambient-apply-|\/usr\/bin\/open|launchctl|do script/);
 });
 
 test("manual apply documentation provides complete platform commands", async () => {
@@ -27,6 +24,6 @@ test("manual apply documentation provides complete platform commands", async () 
   const skill = await readFile(new URL("../SKILL.md", import.meta.url), "utf8");
   assert.match(readme, /"\$HOME\/\.workbuddy\/skills\/workbuddy-ambient-skin\/scripts\/apply\.command" --theme miku-neko-maid/);
   assert.match(readme, /& "\$HOME\\\.workbuddy\\skills\\workbuddy-ambient-skin\\scripts\\workbuddy-ambient\.ps1" terminal-apply --theme miku-neko-maid --restart confirmed/);
-  assert.match(skill, /detect the operating system and return exactly one fenced command block/);
+  assert.match(skill, /Never execute a restart\/apply command from the Agent sandbox/);
   assert.match(skill, /Replace `ID` with the selected theme's real ID/);
 });

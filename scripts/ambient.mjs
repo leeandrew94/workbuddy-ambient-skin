@@ -1,10 +1,5 @@
 #!/usr/bin/env node
-import { execFile as execFileCallback } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { access, chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { promisify } from "node:util";
+import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { bundledThemesRoot, DEFAULT_PORT, studioPaths, VERSION } from "./lib/constants.mjs";
@@ -13,10 +8,7 @@ import { applyToRenderer, removeFromRenderer, rendererStatus } from "./lib/injec
 import { createTheme, deleteUserTheme, listThemes, renameUserTheme } from "./lib/theme.mjs";
 import { forceQuitWorkBuddy, inspectWorkBuddy, launchNormally, launchWithCdp } from "./lib/workbuddy.mjs";
 
-const entryPath = fileURLToPath(import.meta.url);
 const paths = studioPaths();
-const execFile = promisify(execFileCallback);
-const applyCommand = join(dirname(entryPath), "apply.command");
 
 function parse(argv) {
   const command = argv[0] || "help";
@@ -74,37 +66,6 @@ async function windowsTerminalApply(themeId) {
   return { ...(await inject(activeId)), shutdown, launch };
 }
 
-function shellQuote(value) {
-  return `'${String(value).replaceAll("'", `'"'"'`)}'`;
-}
-
-async function openApplyLauncher(themeId) {
-  const { activeId } = await selectedTheme(themeId);
-  if (process.platform === "darwin") {
-    await access(applyCommand);
-    const launcher = join(tmpdir(), `workbuddy-ambient-apply-${randomUUID()}.command`);
-    const body = [
-      "#!/bin/bash",
-      `launcher=${shellQuote(launcher)}`,
-      "trap '/bin/rm -f \"$launcher\"' EXIT",
-      `${shellQuote(applyCommand)} --theme ${shellQuote(activeId)}`,
-      "status=$?",
-      "exit $status",
-      "",
-    ].join("\n");
-    await writeFile(launcher, body, { mode: 0o700 });
-    await chmod(launcher, 0o700);
-    try {
-      await execFile("/usr/bin/open", [launcher]);
-    } catch (error) {
-      await rm(launcher, { force: true }).catch(() => {});
-      throw error;
-    }
-    return { ok: true, status: "launched", launcher: "LaunchServices command", themeId: activeId, port: DEFAULT_PORT };
-  }
-  throw new Error("Agent apply is not available on this platform; choose ② and run the platform launcher");
-}
-
 async function status() {
   const state = await readJson(paths.statePath);
   try {
@@ -119,7 +80,7 @@ export async function run(argv) {
   const { command, options } = parse(argv);
   if (command === "help") return {
     version: VERSION,
-    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "apply --theme ID --restart confirmed", "terminal-apply --theme ID --restart confirmed (Windows)", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed"],
+    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "terminal-apply --theme ID --restart confirmed (Windows terminal only)", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed"],
   };
   if (command === "doctor") {
     const app = await inspectWorkBuddy();
@@ -141,10 +102,6 @@ export async function run(argv) {
   if (command === "delete") {
     if (!options.theme || options.confirm !== "yes") throw new Error("delete requires --theme ID --confirm yes");
     return { ok: true, ...(await deleteUserTheme({ id: options.theme, storeRoot: paths.userThemesRoot, deletedRoot: paths.deletedThemesRoot })) };
-  }
-  if (command === "apply") {
-    if (options.restart !== "confirmed") throw new Error("choose ① confirm apply or ② copy the terminal command");
-    return openApplyLauncher(options.theme);
   }
   if (command === "terminal-apply") {
     if (options.restart !== "confirmed") throw new Error("terminal-apply requires --restart confirmed");
