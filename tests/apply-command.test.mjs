@@ -21,3 +21,12 @@ test("Agent apply opens a disposable command through LaunchServices", async () =
   assert.match(source, /rm -f/);
   assert.doesNotMatch(source, /tell application \\"Terminal\\"|do script|launchctl/);
 });
+
+test("manual apply documentation provides complete platform commands", async () => {
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const skill = await readFile(new URL("../SKILL.md", import.meta.url), "utf8");
+  assert.match(readme, /"\$HOME\/\.workbuddy\/skills\/workbuddy-ambient-skin\/scripts\/apply\.command" --theme miku-neko-maid/);
+  assert.match(readme, /& "\$HOME\\\.workbuddy\\skills\\workbuddy-ambient-skin\\scripts\\workbuddy-ambient\.ps1" terminal-apply --theme miku-neko-maid --restart confirmed/);
+  assert.match(skill, /detect the operating system and return exactly one fenced command block/);
+  assert.match(skill, /Replace `ID` with the selected theme's real ID/);
+});

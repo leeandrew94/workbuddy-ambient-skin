@@ -24,23 +24,23 @@ AI 会按 [SKILL.md](SKILL.md) 检查环境、推荐主题，并在需要重启 
 手动使用只需要三步。macOS：
 
 ```bash
-scripts/workbuddy-ambient.sh doctor
-scripts/workbuddy-ambient.sh list
-scripts/workbuddy-ambient.sh apply --theme paper-aurora --restart confirmed
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" doctor
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" list
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/apply.command" --theme paper-aurora
 ```
 
 Windows PowerShell：
 
 ```powershell
-.\scripts\workbuddy-ambient.ps1 doctor
-.\scripts\workbuddy-ambient.ps1 list
-.\scripts\workbuddy-ambient.ps1 apply --theme paper-aurora --restart confirmed
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" doctor
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" list
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" terminal-apply --theme paper-aurora --restart confirmed
 ```
 
 Windows 会从当前环境发现 WorkBuddy；特殊安装位置可显式指定：
 
 ```powershell
-.\scripts\workbuddy-ambient.ps1 -WorkBuddyExe "D:\Apps\WorkBuddy\WorkBuddy.exe" doctor
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" -WorkBuddyExe "D:\Apps\WorkBuddy\WorkBuddy.exe" doctor
 ```
 
 `apply` 会重启 WorkBuddy 并应用主题；已开启 CDP 时可用 `switch` 瞬时切换。重启前请先保存未完成的输入或任务。Ambient Skin 固定使用 CDP 端口 `9347`；端口被占用时会明确报错，不会自动漂移。
@@ -66,8 +66,14 @@ Windows PowerShell：
 & "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" terminal-apply --theme miku-neko-maid --restart confirmed
 ```
 
+验证命令：
+
 ```bash
-scripts/workbuddy-ambient.sh verify
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" verify
+```
+
+```powershell
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" verify
 ```
 
 ## 把自己的图片带进来
@@ -87,11 +93,17 @@ scripts/workbuddy-ambient.sh verify
 如果想通过命令长期管理图片主题：
 
 ```bash
-scripts/workbuddy-ambient.sh create \
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" create \
   --image "/absolute/path/background.webp" \
   --name "My Theme"
-scripts/workbuddy-ambient.sh rename --theme THEME_ID --name "新名称"
-scripts/workbuddy-ambient.sh delete --theme THEME_ID --confirm yes
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" rename --theme THEME_ID --name "新名称"
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" delete --theme THEME_ID --confirm yes
+```
+
+```powershell
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" create --image "C:\Users\YourName\Pictures\background.webp" --name "My Theme"
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" rename --theme THEME_ID --name "新名称"
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" delete --theme THEME_ID --confirm yes
 ```
 
 命令行删除采用可恢复移除，文件会转移到本机的 `deleted-themes` 目录。内置主题不能删除或重命名。
@@ -112,11 +124,11 @@ scripts/workbuddy-ambient.sh delete --theme THEME_ID --confirm yes
 </p>
 
 ```bash
-scripts/workbuddy-ambient.sh apply --theme paper-aurora --restart confirmed
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/apply.command" --theme paper-aurora
 ```
 
 ```powershell
-.\scripts\workbuddy-ambient.ps1 apply --theme paper-aurora --restart confirmed
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" terminal-apply --theme paper-aurora --restart confirmed
 ```
 
 ### 初音未来 · 猫咪女仆 / Miku Neko Maid
@@ -129,11 +141,11 @@ scripts/workbuddy-ambient.sh apply --theme paper-aurora --restart confirmed
 </p>
 
 ```bash
-scripts/workbuddy-ambient.sh apply --theme miku-neko-maid --restart confirmed
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/apply.command" --theme miku-neko-maid
 ```
 
 ```powershell
-.\scripts\workbuddy-ambient.ps1 apply --theme miku-neko-maid --restart confirmed
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" terminal-apply --theme miku-neko-maid --restart confirmed
 ```
 
 ### 哆啦A梦 · 瑞雪迎福 / Doraemon Snow Fortune
@@ -146,37 +158,45 @@ scripts/workbuddy-ambient.sh apply --theme miku-neko-maid --restart confirmed
 </p>
 
 ```bash
-scripts/workbuddy-ambient.sh apply --theme doraemon-snow-fortune --restart confirmed
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/apply.command" --theme doraemon-snow-fortune
 ```
 
 ```powershell
-.\scripts\workbuddy-ambient.ps1 apply --theme doraemon-snow-fortune --restart confirmed
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" terminal-apply --theme doraemon-snow-fortune --restart confirmed
 ```
 
 两套角色主题使用项目维护者提供的图片。角色及素材相关权利归相应权利方所有；公开分发前请确认素材授权范围。
 
 ## 日常动作
 
-| 想做什么 | 命令 |
-|---|---|
-| 查看主题 | `scripts/workbuddy-ambient.sh list` |
-| 重命名图片主题 | `scripts/workbuddy-ambient.sh rename --theme THEME_ID --name "新名称"` |
-| 删除图片主题 | `scripts/workbuddy-ambient.sh delete --theme THEME_ID --confirm yes` |
-| 即时切换 | `scripts/workbuddy-ambient.sh switch --theme THEME_ID` |
-| 查看状态 | `scripts/workbuddy-ambient.sh status` |
-| 暂停皮肤 | `scripts/workbuddy-ambient.sh pause` |
-| 完整恢复 | `scripts/workbuddy-ambient.sh restore --restart confirmed` |
+macOS：
 
-`switch` 和 `pause` 需要当前皮肤会话仍在运行。WorkBuddy 完全退出后，再次执行 `apply` 即可。
+```bash
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" list
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" switch --theme THEME_ID
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" status
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" pause
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" restore --restart confirmed
+```
 
-Windows 用户将表中的 `scripts/workbuddy-ambient.sh` 替换为 `.\scripts\workbuddy-ambient.ps1` 即可。
+Windows PowerShell：
+
+```powershell
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" list
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" switch --theme THEME_ID
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" status
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" pause
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" restore --restart confirmed
+```
+
+`switch` 和 `pause` 需要当前皮肤会话仍在运行。WorkBuddy 完全退出后，再次执行对应系统的完整 apply 命令即可。
 
 ## Windows 稳定安装
 
 如果不想依赖仓库路径，可将运行时安装到 `%LOCALAPPDATA%\WorkBuddyAmbientSkin\engine`，并创建“应用皮肤”和“恢复原生界面”快捷方式：
 
 ```powershell
-powershell -NoLogo -NoProfile -ExecutionPolicy RemoteSigned -File .\scripts\install-windows.ps1
+powershell -NoLogo -NoProfile -ExecutionPolicy RemoteSigned -File "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\install-windows.ps1"
 ```
 
 安装器先写入随机临时目录，验证入口后再替换旧引擎；更新失败会恢复原版本。不需要快捷方式时加 `-NoShortcuts`。它不会注册开机自启、常驻托盘或后台服务。
@@ -201,11 +221,11 @@ Ambient Skin 通过仅绑定 `127.0.0.1` 的 Chrome DevTools Protocol 找到 Wor
 确认前请先保存 WorkBuddy 中的输入。一次 `--restart confirmed` 会授权一个完整且有界的重启事务：精准结束 WorkBuddy 进程族，等待资源释放，用 CDP 参数启动一次，注入指定皮肤并校验一次。
 
 ```bash
-scripts/workbuddy-ambient.sh apply --theme miku-neko-maid --restart confirmed
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/apply.command" --theme miku-neko-maid
 ```
 
 ```powershell
-.\scripts\workbuddy-ambient.ps1 apply --theme miku-neko-maid --restart confirmed
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" terminal-apply --theme miku-neko-maid --restart confirmed
 ```
 
 这个流程可能丢失未保存内容，所以脚本不会在没有 `--restart confirmed` 时关闭应用。macOS 会持续复核并清理官方 `WorkBuddy.app` 包内的整个进程族，包括退出期间新出现的 helper；Windows 会使用完整可执行路径做同样的有界清理，不会按 `Electron` 或 `WorkBuddy` 名称误伤其他应用。若 CDP 启动或注入失败，流程不会改成普通启动，也不会循环重启，而是保留原始错误和启动日志。

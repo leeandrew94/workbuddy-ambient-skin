@@ -8,9 +8,9 @@ description: Apply, create, switch, verify, pause, or restore lightweight image 
 Use the platform entry point. Never edit `WorkBuddy.app`, `app.asar`, or the application signature.
 
 ```bash
-scripts/workbuddy-ambient.sh <command> [options]
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" <command> [options]
 # Windows PowerShell
-scripts\workbuddy-ambient.ps1 <command> [options]
+& "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" <command> [options]
 ```
 
 ## Apply workflow
@@ -20,7 +20,9 @@ scripts\workbuddy-ambient.ps1 <command> [options]
    - **① 确认 apply**：Agent 执行并验证皮肤；WorkBuddy 会被强制重启，未保存内容可能丢失。
    - **② 复制命令跑**：Agent 不操作 WorkBuddy，只返回一条完整本机终端命令。
 3. For choice ① on macOS, run `apply --theme ID --restart confirmed`. It opens a temporary `.command` through LaunchServices (the programmatic equivalent of double-clicking it). Terminal independently runs the same `apply.command`, survives the WorkBuddy shutdown, and deletes the temporary launcher on exit. This uses neither AppleScript automation nor `launchctl`. Do not run another apply.
-4. For choice ②, return the installed command and do nothing else:
+4. For choice ②, detect the operating system and return exactly one fenced command block for that system. Replace `ID` with the selected theme's real ID so the command can be copied unchanged. Do not show both platforms unless the user explicitly asks for both.
+
+macOS:
 
 ```bash
 "$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/apply.command" --theme ID
@@ -30,15 +32,17 @@ scripts\workbuddy-ambient.ps1 <command> [options]
 & "$HOME\.workbuddy\skills\workbuddy-ambient-skin\scripts\workbuddy-ambient.ps1" terminal-apply --theme ID --restart confirmed
 ```
 
+Precede the command with one short warning that WorkBuddy will be force-restarted and unsaved input may be lost. Do not abbreviate the path, omit required flags, or ask the user to `cd` into the skill directory.
+
 On macOS both choices run the same visible, synchronous `apply.command`: close WorkBuddy, wait two seconds, start Electron once with `--remote-debugging-port=9347`, wait for CDP and the renderer, inject once, and verify once. Never retry, change ports, or launch WorkBuddy normally after failure.
 
 ## Theme commands
 
 ```bash
-scripts/workbuddy-ambient.sh list
-scripts/workbuddy-ambient.sh create --image "/absolute/image.webp" --name "My Theme"
-scripts/workbuddy-ambient.sh rename --theme THEME_ID --name "New Name"
-scripts/workbuddy-ambient.sh delete --theme THEME_ID --confirm yes
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" list
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" create --image "/absolute/image.webp" --name "My Theme"
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" rename --theme THEME_ID --name "New Name"
+"$HOME/.workbuddy/skills/workbuddy-ambient-skin/scripts/workbuddy-ambient.sh" delete --theme THEME_ID --confirm yes
 ```
 
 Accept PNG, JPEG, or WebP up to 15 MB. Custom images are analyzed locally for appearance, OKLCH colors, contrast, safe area, and focus. The injected `◐` menu also supports switching themes, importing an image, renaming, and deleting.
