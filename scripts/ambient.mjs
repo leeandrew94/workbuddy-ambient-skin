@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { execFile as execFileCallback } from "node:child_process";
-import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -14,7 +15,7 @@ import { forceQuitWorkBuddy, inspectWorkBuddy, launchNormally, launchWithCdp } f
 const entryPath = fileURLToPath(import.meta.url);
 const paths = studioPaths();
 const execFile = promisify(execFileCallback);
-const workerCommand = join(dirname(entryPath), "workbuddy-ambient-worker.command");
+const applyCommand = join(dirname(entryPath), "apply.command");
 
 function parse(argv) {
   const command = argv[0] || "help";
@@ -63,7 +64,8 @@ async function inject(themeId) {
   return { ok: true, themeId: activeId, port: DEFAULT_PORT, applied: applied.applied, mode: renderers[0]?.mode ?? null, renderers };
 }
 
-async function restartAndInject(themeId) {
+async function windowsTerminalApply(themeId) {
+  if (process.platform !== "win32") throw new Error("on macOS run scripts/apply.command --theme ID");
   const { activeId } = await selectedTheme(themeId);
   const shutdown = await forceQuitWorkBuddy();
   const launch = await launchWithCdp(DEFAULT_PORT);
@@ -71,43 +73,33 @@ async function restartAndInject(themeId) {
   return { ...(await inject(activeId)), shutdown, launch };
 }
 
-async function startAgentWorker(themeId) {
-  const { activeId } = await selectedTheme(themeId);
-  await writeJson(paths.requestPath, { themeId: activeId, requestedAt: new Date().toISOString() });
-  await writeJson(paths.resultPath, { status: "pending", themeId: activeId, port: DEFAULT_PORT, startedAt: new Date().toISOString() });
-  if (process.platform === "darwin") {
-    await access(workerCommand);
-    await execFile("/usr/bin/open", ["-g", workerCommand]);
-    return { ok: true, status: "pending", launcher: "Terminal command worker", themeId: activeId, port: DEFAULT_PORT, resultPath: paths.resultPath };
-  }
-  throw new Error("Agent apply is not available on this platform; choose ② and run terminal-apply");
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", `'"'"'`)}'`;
 }
 
-async function runWorker(themeId) {
-  if (!themeId) themeId = (await readJson(paths.requestPath))?.themeId;
-  if (!themeId) throw new Error("missing apply request theme");
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  try {
-    const result = await restartAndInject(themeId);
-    const completed = { ...result, status: "complete", finishedAt: new Date().toISOString() };
-    await writeJson(paths.resultPath, completed);
-    return completed;
-  } catch (error) {
-    const failed = { ok: false, status: "failed", themeId, port: DEFAULT_PORT, error: error.message, finishedAt: new Date().toISOString() };
-    await writeJson(paths.statePath, { version: VERSION, ...failed, updatedAt: failed.finishedAt });
-    await writeJson(paths.resultPath, failed);
-    throw error;
+async function openApplyInTerminal(themeId) {
+  const { activeId } = await selectedTheme(themeId);
+  if (process.platform === "darwin") {
+    await access(applyCommand);
+    const launchers = join(paths.stateRoot, "launchers");
+    await mkdir(launchers, { recursive: true, mode: 0o700 });
+    const launcher = join(launchers, `apply-${randomUUID()}.command`);
+    const script = `#!/bin/bash\nself=$0\n/bin/rm -f "$self"\nexec ${shellQuote(applyCommand)} --theme ${shellQuote(activeId)}\n`;
+    await writeFile(launcher, script, { mode: 0o700 });
+    await chmod(launcher, 0o700);
+    await execFile("/usr/bin/open", ["-a", "Terminal", launcher]);
+    return { ok: true, status: "launched", launcher: "Terminal", themeId: activeId, port: DEFAULT_PORT };
   }
+  throw new Error("Agent apply is not available on this platform; choose ② and run the platform launcher");
 }
 
 async function status() {
   const state = await readJson(paths.statePath);
-  const result = await readJson(paths.resultPath);
   try {
     const renderers = await rendererStatus(DEFAULT_PORT);
-    return { ok: renderers.length > 0 && renderers.every((renderer) => renderer.pass), state, result, port: DEFAULT_PORT, renderers };
+    return { ok: renderers.length > 0 && renderers.every((renderer) => renderer.pass), state, port: DEFAULT_PORT, renderers };
   } catch (error) {
-    return { ok: false, state, result, port: DEFAULT_PORT, renderers: [], error: error.message };
+    return { ok: false, state, port: DEFAULT_PORT, renderers: [], error: error.message };
   }
 }
 
@@ -115,7 +107,7 @@ export async function run(argv) {
   const { command, options } = parse(argv);
   if (command === "help") return {
     version: VERSION,
-    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "apply --theme ID --restart confirmed", "terminal-apply --theme ID --restart confirmed", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed"],
+    commands: ["doctor", "list", "create --image PATH --name NAME", "rename --theme ID --name NAME", "delete --theme ID --confirm yes", "apply --theme ID --restart confirmed", "terminal-apply --theme ID --restart confirmed (Windows)", "switch --theme ID", "status", "verify", "pause", "restore --restart confirmed"],
   };
   if (command === "doctor") {
     const app = await inspectWorkBuddy();
@@ -140,15 +132,19 @@ export async function run(argv) {
   }
   if (command === "apply") {
     if (options.restart !== "confirmed") throw new Error("choose ① confirm apply or ② copy the terminal command");
-    return startAgentWorker(options.theme);
+    return openApplyInTerminal(options.theme);
   }
   if (command === "terminal-apply") {
     if (options.restart !== "confirmed") throw new Error("terminal-apply requires --restart confirmed");
-    return restartAndInject(options.theme);
+    return windowsTerminalApply(options.theme);
   }
-  if (command === "worker") return runWorker(options.theme);
+  if (command === "stop") {
+    if (options.restart !== "confirmed") throw new Error("stop requires --restart confirmed");
+    return { ok: true, ...(await forceQuitWorkBuddy()) };
+  }
+  if (command === "inject") return inject(options.theme);
   if (command === "switch") {
-    if (!(await fetchTargets(DEFAULT_PORT)).length) throw new Error("CDP is not active; choose apply or terminal-apply");
+    if (!(await fetchTargets(DEFAULT_PORT)).length) throw new Error("CDP is not active; run apply.command first");
     return inject(options.theme);
   }
   if (command === "pause") {

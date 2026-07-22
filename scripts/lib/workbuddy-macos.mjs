@@ -1,8 +1,8 @@
 import { execFile as execFileCallback } from "node:child_process";
-import { access, mkdir, open } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import { promisify } from "node:util";
 
-import { APP_PATH, BUNDLE_ID, studioPaths } from "./constants.mjs";
+import { APP_PATH, BUNDLE_ID } from "./constants.mjs";
 
 const execFile = promisify(execFileCallback);
 const executable = `${APP_PATH}/Contents/MacOS/Electron`;
@@ -75,22 +75,6 @@ export async function forceQuitWorkBuddy({ timeoutMs = 8000, settleMs = 2000, in
     await wait(100);
   }
   throw new Error(`WorkBuddy processes did not stop: ${(await findPids()).join(", ")}`);
-}
-
-export async function launchWithCdp(port) {
-  const info = await inspectWorkBuddy();
-  if (!info.appFound || !info.bundleMatches) throw new Error("official WorkBuddy bundle was not found");
-  const paths = studioPaths();
-  await mkdir(paths.stateRoot, { recursive: true, mode: 0o700 });
-  const log = await open(paths.launchLogPath, "a", 0o600);
-  await log.write(`\n[${new Date().toISOString()}] LaunchServices open ${APP_PATH} --args --remote-debugging-port=${port}\n`);
-  try {
-    // LaunchServices creates WorkBuddy outside the Agent's inherited sandbox.
-    // Directly spawning Electron from an in-app Agent causes Chromium helpers to
-    // fail with "sandbox initialization failed: Operation not permitted".
-    await execFile("/usr/bin/open", ["-n", APP_PATH, "--args", `--remote-debugging-port=${port}`]);
-    return { port, executable, launcher: "LaunchServices", logPath: paths.launchLogPath };
-  } finally { await log.close(); }
 }
 
 export async function launchNormally() {
