@@ -72,22 +72,21 @@ async function windowsTerminalApply(themeId) {
   return { ...(await inject(activeId)), shutdown, launch };
 }
 
-function shellQuote(value) {
-  return `'${String(value).replaceAll("'", `'"'"'`)}'`;
-}
-
-async function openApplyInTerminal(themeId) {
+async function submitApplyJob(themeId) {
   const { activeId } = await selectedTheme(themeId);
   if (process.platform === "darwin") {
     await access(applyCommand);
-    const command = `exec ${shellQuote(applyCommand)} --theme ${shellQuote(activeId)}`;
-    await execFile("/usr/bin/osascript", [
-      "-e", "tell application \"Terminal\"",
-      "-e", "activate",
-      "-e", `do script ${JSON.stringify(command)}`,
-      "-e", "end tell",
+    const label = "com.workbuddy.ambient-skin.apply";
+    const supervisorLog = join(paths.stateRoot, "launchctl.log");
+    await mkdir(paths.stateRoot, { recursive: true });
+    await execFile("/bin/launchctl", ["remove", label]).catch(() => {});
+    await execFile("/bin/launchctl", [
+      "submit", "-l", label,
+      "-o", supervisorLog,
+      "-e", supervisorLog,
+      "--", "/bin/bash", applyCommand, "--theme", activeId,
     ]);
-    return { ok: true, status: "launched", launcher: "Terminal", themeId: activeId, port: DEFAULT_PORT };
+    return { ok: true, status: "launched", launcher: "launchd", label, themeId: activeId, port: DEFAULT_PORT };
   }
   throw new Error("Agent apply is not available on this platform; choose ② and run the platform launcher");
 }
@@ -131,7 +130,7 @@ export async function run(argv) {
   }
   if (command === "apply") {
     if (options.restart !== "confirmed") throw new Error("choose ① confirm apply or ② copy the terminal command");
-    return openApplyInTerminal(options.theme);
+    return submitApplyJob(options.theme);
   }
   if (command === "terminal-apply") {
     if (options.restart !== "confirmed") throw new Error("terminal-apply requires --restart confirmed");

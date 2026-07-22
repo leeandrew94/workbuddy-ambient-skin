@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("macOS apply uses one synchronous Terminal pipeline", async () => {
+test("macOS apply uses one synchronous restart pipeline", async () => {
   const script = await readFile(new URL("../scripts/apply.command", import.meta.url), "utf8");
   assert.match(script, /osascript.*WorkBuddy.*quit/);
   assert.match(script, /pkill -9 -f '\/Applications\/WorkBuddy/);
@@ -14,9 +14,10 @@ test("macOS apply uses one synchronous Terminal pipeline", async () => {
   assert.doesNotMatch(script, /pending|apply-request|apply-result|worker/);
 });
 
-test("Agent apply delegates to a Terminal-owned shell", async () => {
+test("Agent apply delegates to a launchd-owned one-shot job", async () => {
   const source = await readFile(new URL("../scripts/ambient.mjs", import.meta.url), "utf8");
-  assert.match(source, /tell application \\"Terminal\\"/);
-  assert.match(source, /do script/);
-  assert.doesNotMatch(source, /open\", \[\"-a\", \"Terminal\"/);
+  assert.match(source, /"\/bin\/launchctl"/);
+  assert.match(source, /"submit", "-l", label/);
+  assert.match(source, /com\.workbuddy\.ambient-skin\.apply/);
+  assert.doesNotMatch(source, /tell application \\"Terminal\\"|do script|open\", \[\"-a\", \"Terminal\"/);
 });

@@ -19,7 +19,7 @@ scripts\workbuddy-ambient.ps1 <command> [options]
 2. Before any apply, show exactly these choices and wait:
    - **① 确认 apply**：Agent 执行并验证皮肤；WorkBuddy 会被强制重启，未保存内容可能丢失。
    - **② 复制命令跑**：Agent 不操作 WorkBuddy，只返回一条完整本机终端命令。
-3. For choice ① on macOS, run `apply --theme ID --restart confirmed`. It asks Terminal to create an independent shell and run the same `apply.command`; the shell survives the WorkBuddy shutdown and displays its final verification. Do not run another apply.
+3. For choice ① on macOS, run `apply --theme ID --restart confirmed`. It submits one `launchd` job that runs the same `apply.command`, survives the WorkBuddy shutdown, and writes progress to the apply log. It does not require Terminal automation permission. Do not run another apply.
 4. For choice ②, return the installed command and do nothing else:
 
 ```bash
@@ -47,9 +47,9 @@ When CDP is already active, use `switch --theme ID` for a no-restart change. Use
 
 ## Result handling
 
-- `status: launched` means Terminal accepted choice ①. Read the visible Terminal result; do not start another apply.
+- `status: launched` means `launchd` accepted choice ①. Wait for WorkBuddy to reopen, then read `status` once; do not start another apply.
 - Success requires `status`/`verify` to report renderer markers, the requested theme ID, the menu, and a known mode.
-- On failure, report the exact JSON error and `~/Library/Application Support/WorkBuddyAmbientSkin/workbuddy-launch.log` on macOS. Do not run extra restart attempts or infer causes from historical log entries.
+- On failure, report the exact JSON error plus the current tail of `apply.log`; use `launchctl.log` for task-start failures and `workbuddy-launch.log` for Electron-start failures. All three are under `~/Library/Application Support/WorkBuddyAmbientSkin/`. Do not run extra restart attempts or infer causes from historical entries.
 - Port `9347` is fixed. If occupied, fail clearly instead of selecting another port.
 - CDP is loopback-only. Warn users not to run untrusted local software while the skin session is active.
 
