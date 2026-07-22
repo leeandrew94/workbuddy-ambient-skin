@@ -41,10 +41,24 @@ echo
 "$ENTRY" list | /usr/bin/grep -q "\"id\": \"$THEME\"" || { echo "Theme not found: $THEME" >&2; exit 1; }
 
 echo "[1/4] Closing WorkBuddy..."
-"$ENTRY" stop --restart confirmed >/dev/null
+/usr/bin/osascript -e 'tell application "WorkBuddy" to quit' >/dev/null 2>&1 || true
+for _ in $(seq 1 10); do
+  /usr/bin/pgrep -f '/Applications/WorkBuddy\.app/Contents/' >/dev/null 2>&1 || break
+  sleep 1
+done
+/usr/bin/pkill -9 -f '/Applications/WorkBuddy\.app/Contents/' >/dev/null 2>&1 || true
+for _ in $(seq 1 30); do
+  /usr/bin/pgrep -f '/Applications/WorkBuddy\.app/Contents/' >/dev/null 2>&1 || break
+  sleep 0.1
+done
+if /usr/bin/pgrep -f '/Applications/WorkBuddy\.app/Contents/' >/dev/null 2>&1; then
+  echo "WorkBuddy processes did not stop" >&2
+  exit 1
+fi
+sleep 2
 
 echo "[2/4] Starting WorkBuddy with CDP..."
-nohup "$APP/Contents/MacOS/Electron" --remote-debugging-port="$PORT" >> "$LOG_ROOT/workbuddy-launch.log" 2>&1 &
+NO_PROXY="localhost,127.0.0.1,::1" no_proxy="localhost,127.0.0.1,::1" nohup "$APP/Contents/MacOS/Electron" --remote-debugging-port="$PORT" >> "$LOG_ROOT/workbuddy-launch.log" 2>&1 &
 disown
 
 echo "[3/4] Waiting for CDP and renderer..."

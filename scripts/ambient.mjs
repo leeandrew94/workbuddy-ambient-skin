@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { execFile as execFileCallback } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { access, chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -81,13 +80,13 @@ async function openApplyInTerminal(themeId) {
   const { activeId } = await selectedTheme(themeId);
   if (process.platform === "darwin") {
     await access(applyCommand);
-    const launchers = join(paths.stateRoot, "launchers");
-    await mkdir(launchers, { recursive: true, mode: 0o700 });
-    const launcher = join(launchers, `apply-${randomUUID()}.command`);
-    const script = `#!/bin/bash\nself=$0\n/bin/rm -f "$self"\nexec ${shellQuote(applyCommand)} --theme ${shellQuote(activeId)}\n`;
-    await writeFile(launcher, script, { mode: 0o700 });
-    await chmod(launcher, 0o700);
-    await execFile("/usr/bin/open", ["-a", "Terminal", launcher]);
+    const command = `exec ${shellQuote(applyCommand)} --theme ${shellQuote(activeId)}`;
+    await execFile("/usr/bin/osascript", [
+      "-e", "tell application \"Terminal\"",
+      "-e", "activate",
+      "-e", `do script ${JSON.stringify(command)}`,
+      "-e", "end tell",
+    ]);
     return { ok: true, status: "launched", launcher: "Terminal", themeId: activeId, port: DEFAULT_PORT };
   }
   throw new Error("Agent apply is not available on this platform; choose ② and run the platform launcher");

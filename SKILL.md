@@ -19,7 +19,7 @@ scripts\workbuddy-ambient.ps1 <command> [options]
 2. Before any apply, show exactly these choices and wait:
    - **① 确认 apply**：Agent 执行并验证皮肤；WorkBuddy 会被强制重启，未保存内容可能丢失。
    - **② 复制命令跑**：Agent 不操作 WorkBuddy，只返回一条完整本机终端命令。
-3. For choice ① on macOS, run `apply --theme ID --restart confirmed`. It opens a visible Terminal window and runs the same `apply.command`; the Terminal script displays its final verification. Do not run another apply.
+3. For choice ① on macOS, run `apply --theme ID --restart confirmed`. It asks Terminal to create an independent shell and run the same `apply.command`; the shell survives the WorkBuddy shutdown and displays its final verification. Do not run another apply.
 4. For choice ②, return the installed command and do nothing else:
 
 ```bash
