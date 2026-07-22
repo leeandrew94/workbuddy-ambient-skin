@@ -52,7 +52,10 @@ test("loads bundled themes", async () => {
   assert.equal(miku.manifest.modes.workOpacity, 0.1);
   assert.ok(miku.imageDataUrl.startsWith("data:image/webp;base64,"));
   const raiden = themes.find((theme) => theme.manifest.id === "genshin-raiden-shogun");
-  assert.equal(raiden.manifest.appearance, "dark");
+  assert.equal(raiden.manifest.appearance, "light");
+  assert.deepEqual(raiden.manifest.palette, {
+    accent: "#7047C8", secondary: "#A67BE8", surface: "#F5F1FC", text: "#29203B",
+  });
   assert.equal(raiden.manifest.modes.workOpacity, 0.08);
   assert.ok(raiden.imageDataUrl.startsWith("data:image/webp;base64,"));
 });
