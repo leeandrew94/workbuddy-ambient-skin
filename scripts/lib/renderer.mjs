@@ -290,12 +290,16 @@ async function installInRenderer(data) {
 
   const host = document.createElement("div");
   host.id = data.HOST_ID;
-  host.style.cssText = "position:fixed;right:16px;top:52px;z-index:2147483000;pointer-events:auto";
+  host.style.cssText = "position:fixed;left:calc(100vw - 52px);top:52px;z-index:2147483000;pointer-events:auto";
   const shadow = host.attachShadow({ mode: "open" });
   shadow.innerHTML = `<style>
     :host{all:initial}button{font:13px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#20242c}
-    .trigger{width:36px;height:36px;border-radius:50%;border:1px solid rgb(120 130 150/.28);background:rgb(250 251 253/.9);box-shadow:0 5px 18px rgb(0 0 0/.2);backdrop-filter:blur(14px);cursor:pointer;font-size:17px}
+    .trigger{position:relative;width:36px;height:36px;border-radius:50%;border:1px solid rgb(120 130 150/.28);background:rgb(250 251 253/.9);box-shadow:0 5px 18px rgb(0 0 0/.2);backdrop-filter:blur(14px);cursor:grab;font-size:17px;touch-action:none;user-select:none;transition:transform 160ms ease,box-shadow 180ms ease}
+    .trigger::after{content:"";position:absolute;inset:6px;z-index:-1;border-radius:50%;background:color-mix(in srgb,var(--wbas-accent,#78a7ff) 68%,transparent);filter:blur(8px);opacity:0;transform:translate(var(--orb-trail-x,0),var(--orb-trail-y,0)) scale(.82);transition:opacity 160ms ease,transform 120ms ease}
+    .trigger.dragging{cursor:grabbing;transform:scale(1.08);box-shadow:0 0 0 5px color-mix(in srgb,var(--wbas-accent,#78a7ff) 18%,transparent),0 10px 28px color-mix(in srgb,var(--wbas-accent,#78a7ff) 42%,transparent)}
+    .trigger.dragging::after{opacity:.62}
     .panel{display:none;position:absolute;right:0;top:44px;width:250px;padding:7px;border:1px solid rgb(120 130 150/.22);border-radius:13px;background:rgb(250 251 253/.94);box-shadow:0 12px 34px rgb(0 0 0/.22);backdrop-filter:blur(18px)}
+    :host([data-dock="left"]) .panel{left:0;right:auto}:host([data-vertical="bottom"]) .panel{top:auto;bottom:44px}
     :host([data-appearance="dark"]) button{color:#eef2f8}:host([data-appearance="dark"]) .trigger,:host([data-appearance="dark"]) .panel{background:rgb(25 29 38/.94);border-color:rgb(180 190 210/.2)}:host([data-appearance="dark"]) .title{color:#aeb7c7}:host([data-appearance="dark"]) .item:hover,:host([data-appearance="dark"]) .action:hover{background:rgb(235 240 255/.09)}
     .panel.open{display:block}.title{padding:7px 9px 5px;color:#687080;font:600 11px/1.2 -apple-system,sans-serif;text-transform:uppercase;letter-spacing:.06em}
     .row{display:flex;align-items:center;gap:2px;min-width:0}.row .item{flex:1;width:auto;min-width:0}.item{display:flex;width:100%;min-width:0;align-items:center;gap:9px;border:0;border-radius:8px;padding:8px 9px;background:transparent;cursor:pointer;text-align:left}.item>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.item:hover,.action:hover{background:rgb(20 30 50/.07)}
@@ -305,8 +309,10 @@ async function installInRenderer(data) {
     :host([data-appearance="dark"]) .editor-input{background:rgb(10 14 21/.58);border-color:rgb(180 190 210/.24);color:#eef2f8}:host([data-appearance="dark"]) .confirm-text{color:#aeb7c7}:host([data-appearance="dark"]) .mini{color:#eef2f8;background:rgb(120 160 240/.14)}:host([data-appearance="dark"]) .mini.danger{color:#ff8e9d;background:rgb(255 90 110/.1)}
     .item.active{background:rgb(80 125 230/.13);font-weight:650}.dot{width:10px;height:10px;border-radius:50%}.divider{height:1px;margin:5px 4px;background:rgb(100 110 130/.16)}
     .notice{min-height:14px;padding:3px 9px 2px;color:#70798a;font:11px/1.25 -apple-system,sans-serif}.notice.error{color:#c44858}:host([data-appearance="dark"]) .notice{color:#aeb7c7}:host([data-appearance="dark"]) .notice.error{color:#ff8e9d}
+    @media (prefers-reduced-motion:reduce){.trigger,.trigger::after{transition:none}.trigger.dragging{transform:none}.trigger.dragging::after{display:none}}
   </style><button class="trigger" title="WorkBuddy Ambient Skin">◐</button><div class="panel"><div class="title">Ambient Skin</div><div class="items"></div><div class="divider"></div><button class="item upload"><span class="dot" style="background:#68a5ef"></span>＋ 选择本地图片</button><button class="item native"><span class="dot" style="background:#9aa1ad"></span>原生界面</button><div class="notice"></div><input class="picker" type="file" accept="image/png,image/jpeg,image/webp" hidden></div>`;
   document.body.appendChild(host);
+  const trigger = shadow.querySelector(".trigger");
   const panel = shadow.querySelector(".panel");
   const items = shadow.querySelector(".items");
   const picker = shadow.querySelector(".picker");
@@ -315,7 +321,87 @@ async function installInRenderer(data) {
     notice.textContent = message;
     notice.classList.toggle("error", error);
   };
-  shadow.querySelector(".trigger").addEventListener("click", () => panel.classList.toggle("open"));
+  const orbPositionKey = "workbuddy-ambient-skin.orb-position-v1";
+  const orbSize = 36;
+  const orbMargin = 12;
+  const setOrbPosition = (left, top, animate = false) => {
+    host.style.transition = animate ? "left 280ms cubic-bezier(.2,.9,.25,1.15),top 180ms ease" : "none";
+    host.style.left = `${clamp(left, orbMargin, Math.max(orbMargin, innerWidth - orbSize - orbMargin))}px`;
+    host.style.top = `${clamp(top, orbMargin, Math.max(orbMargin, innerHeight - orbSize - orbMargin))}px`;
+    const rect = host.getBoundingClientRect();
+    host.dataset.dock = rect.left + orbSize / 2 < innerWidth / 2 ? "left" : "right";
+    host.dataset.vertical = rect.top + orbSize / 2 > innerHeight * .58 ? "bottom" : "top";
+  };
+  const saveOrbPosition = () => {
+    const rect = host.getBoundingClientRect();
+    const range = Math.max(1, innerHeight - orbSize - orbMargin * 2);
+    const position = { side: rect.left + orbSize / 2 < innerWidth / 2 ? "left" : "right", y: clamp((rect.top - orbMargin) / range, 0, 1) };
+    try { localStorage.setItem(orbPositionKey, JSON.stringify(position)); } catch {}
+    return position;
+  };
+  const loadOrbPosition = () => {
+    let position = null;
+    try { position = JSON.parse(localStorage.getItem(orbPositionKey) || "null"); } catch {}
+    const side = position?.side === "left" ? "left" : "right";
+    const y = Number.isFinite(position?.y) ? clamp(position.y, 0, 1) : clamp((52 - orbMargin) / Math.max(1, innerHeight - orbSize - orbMargin * 2), 0, 1);
+    const left = side === "left" ? orbMargin : innerWidth - orbSize - orbMargin;
+    setOrbPosition(left, orbMargin + y * Math.max(1, innerHeight - orbSize - orbMargin * 2));
+  };
+  let drag = null;
+  let suppressOrbClick = false;
+  const finishOrbDrag = (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    try { trigger.releasePointerCapture(event.pointerId); } catch {}
+    if (drag.moved) {
+      const rect = host.getBoundingClientRect();
+      const left = rect.left + orbSize / 2 < innerWidth / 2 ? orbMargin : innerWidth - orbSize - orbMargin;
+      setOrbPosition(left, rect.top, true);
+      saveOrbPosition();
+      suppressOrbClick = true;
+      setTimeout(() => { suppressOrbClick = false; }, 0);
+    }
+    trigger.classList.remove("dragging");
+    trigger.style.removeProperty("--orb-trail-x");
+    trigger.style.removeProperty("--orb-trail-y");
+    drag = null;
+  };
+  trigger.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    const rect = host.getBoundingClientRect();
+    drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, moved: false, lastX: event.clientX, lastY: event.clientY };
+    trigger.setPointerCapture(event.pointerId);
+  });
+  trigger.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+    drag.moved = true;
+    panel.classList.remove("open");
+    trigger.classList.add("dragging");
+    setOrbPosition(drag.left + dx, drag.top + dy);
+    trigger.style.setProperty("--orb-trail-x", `${clamp((drag.lastX - event.clientX) * 1.4, -14, 14)}px`);
+    trigger.style.setProperty("--orb-trail-y", `${clamp((drag.lastY - event.clientY) * 1.4, -14, 14)}px`);
+    drag.lastX = event.clientX; drag.lastY = event.clientY;
+  });
+  trigger.addEventListener("pointerup", finishOrbDrag);
+  trigger.addEventListener("pointercancel", finishOrbDrag);
+  trigger.addEventListener("click", () => {
+    if (suppressOrbClick) return;
+    panel.classList.toggle("open");
+  });
+  trigger.addEventListener("dblclick", () => {
+    panel.classList.remove("open");
+    setOrbPosition(innerWidth - orbSize - 16, 52, true);
+    saveOrbPosition();
+  });
+  const syncOrbViewport = () => {
+    const saved = saveOrbPosition();
+    const left = saved.side === "left" ? orbMargin : innerWidth - orbSize - orbMargin;
+    setOrbPosition(left, orbMargin + saved.y * Math.max(1, innerHeight - orbSize - orbMargin * 2));
+  };
+  window.addEventListener("resize", syncOrbViewport);
+  loadOrbPosition();
   shadow.querySelector(".native").addEventListener("click", () => {
     try { localStorage.setItem("workbuddy-ambient-skin.paused", "1"); } catch {}
     state.cleanup(true);
@@ -424,7 +510,7 @@ async function installInRenderer(data) {
     themeId: null,
     cleanup() {
       if (disposed) return;
-      disposed = true; clearTimeout(timer); observer.disconnect(); window.removeEventListener("resize", scheduleMode);
+      disposed = true; clearTimeout(timer); observer.disconnect(); window.removeEventListener("resize", scheduleMode); window.removeEventListener("resize", syncOrbViewport);
       style.remove(); host.remove(); html.classList.remove("workbuddy-ambient-skin");
       delete html.dataset.wbasAppearance; delete html.dataset.wbasSafe; delete html.dataset.wbasTheme; delete html.dataset.wbasMode; delete html.dataset.wbasMaterial;
       for (const name of rootVariables) html.style.removeProperty(name);

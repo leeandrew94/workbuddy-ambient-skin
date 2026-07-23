@@ -1,0 +1,45 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { buildInstallExpression, buildRemoveExpression, buildStatusExpression } from "../scripts/lib/renderer.mjs";
+
+test("builds self-contained idempotent renderer expressions", () => {
+  const expression = buildInstallExpression({ css: "#root{}", themes: [{ id: "one" }], activeId: "one" });
+  assert.doesNotThrow(() => new Function(`return ${expression}`));
+  assert.match(expression, /MutationObserver/);
+  assert.match(expression, /Date\.now\(\) \+ 30_000/);
+  assert.match(expression, /missing markers/);
+  assert.match(expression, /attachShadow/);
+  assert.match(expression, /analyzeImage/);
+  assert.match(expression, /workbuddy-ambient-skin\.custom/);
+  assert.match(expression, /custom-v2/);
+  assert.match(expression, /editor-input/);
+  assert.match(expression, /重命名保存失败/);
+  assert.match(expression, /删除“/);
+  assert.doesNotMatch(expression, /window\.prompt/);
+  assert.doesNotMatch(expression, /window\.confirm/);
+  assert.match(expression, /wbasMaterial/);
+  assert.match(expression, /--wbas-material-blur/);
+  assert.match(expression, /text-overflow:ellipsis/);
+  assert.match(expression, /button\.title = theme\.name/);
+  assert.match(expression, /slice\(0, 8\)/);
+  assert.match(expression, /candidate\.id === "paper-aurora"/);
+  assert.match(expression, /选择本地图片/);
+  assert.match(expression, /orb-position-v1/);
+  assert.match(expression, /setPointerCapture/);
+  assert.match(expression, /pointercancel/);
+  assert.match(expression, /prefers-reduced-motion/);
+  assert.match(expression, /cubic-bezier/);
+  assert.match(expression, /data-dock/);
+  assert.match(expression, /analysis-v1/);
+  assert.match(expression, /analysis-v2/);
+  assert.match(expression, /rgbToOklch/);
+  assert.match(expression, /oklchToRgb/);
+  assert.match(expression, /hueDistance/);
+  assert.match(expression, /contrastRatio/);
+  assert.match(expression, /algorithmVersion: 2/);
+  assert.match(expression, /minimum, direction/);
+  assert.match(expression, /图片已保存/);
+  assert.match(buildRemoveExpression(), /cleanup\(\)/);
+  assert.match(buildStatusExpression(), /installed/);
+});
